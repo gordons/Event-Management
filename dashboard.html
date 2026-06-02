@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Event Registration — Dashboard</title>
+<link rel="stylesheet" href="../css/style.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h2><i class="ti ti-qrcode" style="color:#185FA5"></i> EventReg</h2>
+      <p>Sistem Absensi Digital</p>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sb-avatar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="sb-name">Loading...</div>
+        <div class="user-role" id="sb-role">—</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Menu</div>
+      <div class="nav-item active" onclick="goPage('home')" id="nav-home"><i class="ti ti-home"></i> Beranda</div>
+      <div class="nav-item" onclick="goPage('events')" id="nav-events"><i class="ti ti-calendar-event"></i> Daftar Event</div>
+      <div id="admin-nav" style="display:none">
+        <div class="nav-section">Admin</div>
+        <div class="nav-item" onclick="goPage('manage-users')" id="nav-manage-users"><i class="ti ti-users"></i> Kelola Panitia</div>
+      </div>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="btn-logout" onclick="doLogout()"><i class="ti ti-logout"></i> Keluar</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- HOME -->
+    <div class="page active" id="page-home">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Beranda</div>
+          <div class="page-sub" id="home-greeting">Selamat datang!</div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Event Saya</div><div class="stat-val blue" id="hs-events">—</div></div>
+        <div class="stat-card"><div class="stat-label">Total Peserta</div><div class="stat-val" id="hs-peserta">—</div></div>
+        <div class="stat-card"><div class="stat-label">Sudah Hadir</div><div class="stat-val green" id="hs-hadir">—</div></div>
+        <div class="stat-card"><div class="stat-label">Belum Hadir</div><div class="stat-val amber" id="hs-belum">—</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-calendar-event" style="color:#185FA5"></i> Event Terbaru</div>
+        <div id="home-events-list"><div class="loading"><i class="ti ti-loader-2 spin"></i> Memuat...</div></div>
+      </div>
+    </div>
+
+    <!-- EVENTS -->
+    <div class="page" id="page-events">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Daftar Event</div>
+          <div class="page-sub">Event yang Anda kelola</div>
+        </div>
+        <button class="btn btn-blue btn-sm" id="btn-create-event" onclick="openModal('modal-create-event')" style="display:none"><i class="ti ti-plus"></i> Buat Event</button>
+      </div>
+      <div class="event-grid" id="events-grid"></div>
+    </div>
+
+    <!-- EVENT DETAIL -->
+    <div class="page" id="page-event-detail">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="btn btn-sm btn-outline" onclick="goPage('events')"><i class="ti ti-arrow-left"></i> Kembali</button>
+          <div>
+            <div class="page-title" id="ed-title">Detail Event</div>
+            <div class="page-sub" id="ed-sub">—</div>
+          </div>
+        </div>
+        <div id="ed-admin-btns"></div>
+      </div>
+      <div style="display:flex;gap:4px;background:#f0f0f0;padding:4px;border-radius:10px;width:fit-content;margin-bottom:1.25rem">
+        <button class="stab active" onclick="switchSubTab('scanner')" id="stab-scanner"><i class="ti ti-scan"></i> Scanner</button>
+        <button class="stab" onclick="switchSubTab('peserta')" id="stab-peserta"><i class="ti ti-users"></i> Peserta</button>
+        <button class="stab" onclick="switchSubTab('panitia')" id="stab-panitia" style="display:none"><i class="ti ti-id-badge"></i> Panitia</button>
+      </div>
+
+      <!-- SCANNER TAB -->
+      <div id="subtab-scanner">
+        <div class="scanner-layout">
+          <div class="card">
+            <div class="card-title"><i class="ti ti-scan" style="color:#185FA5"></i> Scanner QR Code</div>
+            <div class="qr-viewport" id="qr-viewport">
+              <div class="qr-corners"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span></div>
+              <div class="scan-line" id="scan-line"></div>
+              <div class="qr-state" id="qr-idle-state"><i class="ti ti-qrcode idle"></i><p>Masukkan No. Verifikasi<br>atau simulasi scan di bawah</p></div>
+              <div class="qr-state" id="qr-scan-state" style="display:none"><i class="ti ti-loader-2 spin" style="font-size:40px;color:#378ADD"></i><p style="color:#888;font-size:12px">Memverifikasi...</p></div>
+              <div class="qr-success-screen" id="qr-success-screen">
+                <i class="ti ti-circle-check"></i>
+                <div class="welcome-text">Selamat Datang,</div>
+                <div class="welcome-name" id="qr-welcome-name"></div>
+                <div class="welcome-sub" id="qr-welcome-sub"></div>
+              </div>
+              <div class="qr-error-screen" id="qr-error-screen">
+                <i class="ti ti-circle-x"></i>
+                <div class="error-title">ID Tidak Dikenal</div>
+                <div class="error-sub" id="qr-error-sub"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:.75rem">
+              <input type="text" id="manual-id" placeholder="No. Verifikasi…" style="flex:1;padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter')processId()"/>
+              <button class="btn btn-blue btn-sm" onclick="processId()"><i class="ti ti-scan"></i> Scan</button>
+            </div>
+            <div class="found-box" id="found-box"><div class="fn" id="found-name"></div><div class="fm" id="found-meta"></div></div>
+            <div id="note-area" style="display:none;margin-top:.75rem">
+              <label style="font-size:12px;color:#888;display:block;margin-bottom:5px">Keterangan (opsional):</label>
+              <textarea id="note-input" placeholder="Catatan tambahan…" style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;outline:none"></textarea>
+              <button class="btn btn-green" style="margin-top:8px;width:100%" onclick="saveAttendance()"><i class="ti ti-circle-check"></i> Simpan Kehadiran</button>
+            </div>
+            <div class="sim-wrap" id="sim-wrap">
+              <div class="sim-label">Simulasi scan:</div>
+              <div class="sim-btns" id="sim-btns"></div>
+            </div>
+          </div>
+
+          <div class="card" style="min-width:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+              <div class="card-title" style="margin-bottom:0"><i class="ti ti-list-check" style="color:#185FA5"></i> Kehadiran</div>
+              <div style="display:flex;gap:6px">
+                <div class="search-box"><i class="ti ti-search" style="color:#bbb"></i><input type="text" placeholder="Cari…" oninput="filterAtt(this.value)"/></div>
+                <button class="btn btn-sm btn-outline" onclick="exportCSV()"><i class="ti ti-download"></i> Export</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table style="table-layout:fixed">
+                <colgroup><col style="width:110px"><col style="width:auto"><col style="width:110px"><col style="width:120px"><col style="width:75px"><col style="width:130px"></colgroup>
+                <thead><tr><th>No. Verifikasi</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>Jam Hadir</th><th>Keterangan</th></tr></thead>
+                <tbody id="att-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PESERTA TAB -->
+      <div id="subtab-peserta" style="display:none">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+            <div class="card-title" style="margin-bottom:0"><i class="ti ti-users" style="color:#185FA5"></i> Daftar Peserta</div>
+          </div>
+          <div id="upload-section" style="display:none;margin-bottom:1rem">
+            <div class="info-box"><strong>Format CSV:</strong> Kolom yang dibutuhkan: <span class="tag">no_verifikasi</span><span class="tag">nama</span><span class="tag">jabatan</span><span class="tag">departemen</span></div>
+            <div style="display:flex;gap:8px;margin-bottom:.75rem">
+              <button class="btn btn-sm btn-outline" onclick="downloadTemplate()"><i class="ti ti-download"></i> Template CSV</button>
+            </div>
+            <div class="upload-zone" onclick="document.getElementById('csv-file').click()">
+              <i class="ti ti-file-type-csv"></i>
+              <p><strong>Klik untuk pilih file CSV</strong><br>Upload daftar peserta undangan</p>
+              <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleCSV(event)"/>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>No. Verifikasi</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>Status</th></tr></thead><tbody id="peserta-body"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANITIA TAB -->
+      <div id="subtab-panitia" style="display:none">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <div class="card-title" style="margin-bottom:0"><i class="ti ti-id-badge" style="color:#185FA5"></i> Panitia Event Ini</div>
+            <button class="btn btn-blue btn-sm" onclick="openAddStaff()"><i class="ti ti-plus"></i> Tambah Panitia</button>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Nama</th><th>Email</th><th>Aksi</th></tr></thead><tbody id="staff-body"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANAGE USERS -->
+    <div class="page" id="page-manage-users">
+      <div class="page-header"><div><div class="page-title">Kelola Panitia</div><div class="page-sub">Daftar semua akun panitia</div></div></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table><thead><tr><th>Nama</th><th>Role</th><th>Bergabung</th><th>Aksi</th></tr></thead><tbody id="users-body"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL Buat Event -->
+<div class="modal-overlay" id="modal-create-event">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Buat Event Baru</div><button class="modal-close" onclick="closeModal('modal-create-event')">×</button></div>
+    <div class="modal-body">
+      <div class="alert-msg" id="create-event-alert"></div>
+      <div class="form-group-inline"><label>Nama Event *</label><input type="text" id="ev-name" placeholder="Contoh: Seminar Nasional 2026"/></div>
+      <div class="form-group-inline"><label>Deskripsi</label><textarea id="ev-desc" placeholder="Deskripsi singkat event"></textarea></div>
+      <div class="form-row">
+        <div class="form-group-inline"><label>Tanggal *</label><input type="date" id="ev-date"/></div>
+        <div class="form-group-inline"><label>Lokasi</label><input type="text" id="ev-location" placeholder="Gedung/Ruangan"/></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-outline" onclick="closeModal('modal-create-event')">Batal</button>
+      <button class="btn btn-blue btn-sm" onclick="createEvent()" id="btn-create-ev">Buat Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL Tambah Panitia -->
+<div class="modal-overlay" id="modal-add-staff">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Tambah Panitia ke Event</div><button class="modal-close" onclick="closeModal('modal-add-staff')">×</button></div>
+    <div class="modal-body">
+      <div class="alert-msg" id="add-staff-alert"></div>
+      <div class="form-group-inline"><label>Pilih Panitia</label><select id="staff-select"><option value="">— Pilih panitia —</option></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-outline" onclick="closeModal('modal-add-staff')">Batal</button>
+      <button class="btn btn-blue btn-sm" onclick="addStaff()">Tambah</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.stab{padding:7px 16px;border-radius:7px;font-size:13px;cursor:pointer;color:#888;border:none;background:none;display:inline-flex;align-items:center;gap:6px;font-family:inherit;transition:all .15s}
+.stab.active{background:#fff;color:#185FA5;font-weight:500;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+</style>
+
+<script>
+const SUPABASE_URL = 'https://brmpyrlmmvjrataeovdm.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJybXB5cmxtbXZqcmF0YWVvdmRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzUwODAsImV4cCI6MjA5NTk1MTA4MH0.XzlHNnJl7ZK3HRS4haM61NPPVJnri4-7EdQNHWG1SBo'
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+let currentUser=null,currentProfile=null,currentEventId=null,allAttendees=[],filterText=''
+const colors=[{bg:'#dbeafe',text:'#1e40af'},{bg:'#dcfce7',text:'#166534'},{bg:'#ede9fe',text:'#6d28d9'},{bg:'#fef3c7',text:'#92400e'},{bg:'#fee2e2',text:'#991b1b'},{bg:'#fce7f3',text:'#9d174d'}]
+function getColor(i){return colors[i%colors.length]}
+function getInitials(n){return(n||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}
+
+;(async()=>{
+  const {data:{session}} = await _supabase.auth.getSession()
+  if(!session){window.location.href='../index.html';return}
+  currentUser=session.user
+  const {data:profile} = await _supabase.from('profiles').select('*').eq('id',currentUser.id).single()
+  currentProfile=profile
+  document.getElementById('sb-name').textContent=profile?.full_name||currentUser.email
+  document.getElementById('sb-role').textContent=profile?.role||'panitia'
+  document.getElementById('sb-avatar').textContent=getInitials(profile?.full_name||currentUser.email)
+  if(profile?.role==='admin'){
+    document.getElementById('admin-nav').style.display='block'
+    document.getElementById('btn-create-event').style.display='inline-flex'
+  }
+  document.getElementById('home-greeting').textContent=`Selamat datang, ${profile?.full_name||''}!`
+  loadHomeStats()
+  loadEvents()
+})()
+
+async function doLogout(){await _supabase.auth.signOut();window.location.href='../index.html'}
+
+function goPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'))
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'))
+  document.getElementById('page-'+p).classList.add('active')
+  const nav=document.getElementById('nav-'+p);if(nav)nav.classList.add('active')
+  if(p==='events')loadEvents()
+  if(p==='manage-users')loadUsers()
+}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function showModalAlert(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='alert-msg '+type;el.style.display='block'}
+
+async function loadHomeStats(){
+  const isAdmin=currentProfile?.role==='admin'
+  let evIds=[]
+  if(isAdmin){const {data}=await _supabase.from('events').select('id');evIds=(data||[]).map(e=>e.id)}
+  else{const {data}=await _supabase.from('event_staff').select('event_id').eq('user_id',currentUser.id);evIds=(data||[]).map(e=>e.event_id)}
+  document.getElementById('hs-events').textContent=evIds.length
+  if(!evIds.length){document.getElementById('hs-peserta').textContent=0;document.getElementById('hs-hadir').textContent=0;document.getElementById('hs-belum').textContent=0;document.getElementById('home-events-list').innerHTML='<div class="no-data"><i class="ti ti-calendar-off"></i>Belum ada event</div>';return}
+  const {data:att}=await _supabase.from('attendees').select('hadir').in('event_id',evIds)
+  const hadir=(att||[]).filter(a=>a.hadir).length
+  document.getElementById('hs-peserta').textContent=(att||[]).length
+  document.getElementById('hs-hadir').textContent=hadir
+  document.getElementById('hs-belum').textContent=(att||[]).length-hadir
+  const {data:events}=await _supabase.from('events').select('*').in('id',evIds).order('date',{ascending:false}).limit(3)
+  renderHomeEvents(events||[])
+}
+
+function renderHomeEvents(events){
+  const el=document.getElementById('home-events-list')
+  if(!events.length){el.innerHTML='<div class="no-data"><i class="ti ti-calendar-off"></i>Belum ada event</div>';return}
+  el.innerHTML=`<div class="event-grid">${events.map(e=>`<div class="event-card" onclick="openEventDetail('${e.id}')"><span class="badge blue"><i class="ti ti-calendar" style="font-size:11px"></i> ${new Date(e.date).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}</span><h3 style="margin-top:6px">${e.name}</h3><p>${e.location||'—'}</p></div>`).join('')}</div>`
+}
+
+async function loadEvents(){
+  const grid=document.getElementById('events-grid')
+  grid.innerHTML='<div class="loading"><i class="ti ti-loader-2 spin"></i> Memuat...</div>'
+  const isAdmin=currentProfile?.role==='admin'
+  if(isAdmin){const {data}=await _supabase.from('events').select('*').order('date',{ascending:false});renderEvents(data||[])}
+  else{
+    const {data:es}=await _supabase.from('event_staff').select('event_id').eq('user_id',currentUser.id)
+    const ids=(es||[]).map(e=>e.event_id)
+    if(!ids.length){grid.innerHTML='<div class="no-data"><i class="ti ti-calendar-off"></i>Anda belum ditugaskan ke event manapun</div>';return}
+    const {data}=await _supabase.from('events').select('*').in('id',ids).order('date',{ascending:false})
+    renderEvents(data||[])
+  }
+}
+
+function renderEvents(events){
+  const grid=document.getElementById('events-grid')
+  if(!events.length){grid.innerHTML='<div class="no-data"><i class="ti ti-calendar-off"></i>Belum ada event</div>';return}
+  grid.innerHTML=events.map(e=>`<div class="event-card" onclick="openEventDetail('${e.id}')"><span class="badge blue"><i class="ti ti-calendar" style="font-size:11px"></i> ${new Date(e.date).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}</span><h3 style="margin-top:6px">${e.name}</h3><p>${e.description||''}</p><p style="margin-top:4px"><i class="ti ti-map-pin" style="font-size:12px"></i> ${e.location||'—'}</p></div>`).join('')
+}
+
+async function createEvent(){
+  const name=document.getElementById('ev-name').value.trim()
+  const desc=document.getElementById('ev-desc').value.trim()
+  const date=document.getElementById('ev-date').value
+  const loc=document.getElementById('ev-location').value.trim()
+  if(!name||!date){showModalAlert('create-event-alert','Nama dan tanggal wajib diisi.','error');return}
+  const btn=document.getElementById('btn-create-ev');btn.disabled=true;btn.textContent='Menyimpan...'
+  const {error}=await _supabase.from('events').insert({name,description:desc,date,location:loc,created_by:currentUser.id})
+  btn.disabled=false;btn.textContent='Buat Event'
+  if(error){showModalAlert('create-event-alert',error.message,'error');return}
+  closeModal('modal-create-event');loadEvents();loadHomeStats()
+  document.getElementById('ev-name').value='';document.getElementById('ev-desc').value='';document.getElementById('ev-date').value='';document.getElementById('ev-location').value=''
+}
+
+async function openEventDetail(eventId){
+  currentEventId=eventId
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'))
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'))
+  document.getElementById('page-event-detail').classList.add('active')
+  switchSubTab('scanner')
+  const {data:ev}=await _supabase.from('events').select('*').eq('id',eventId).single()
+  document.getElementById('ed-title').textContent=ev.name
+  document.getElementById('ed-sub').textContent=`${new Date(ev.date).toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${ev.location||'—'}`
+  const isAdmin=currentProfile?.role==='admin'
+  if(isAdmin){
+    document.getElementById('stab-panitia').style.display='inline-flex'
+    document.getElementById('ed-admin-btns').innerHTML=`<button class="btn btn-sm btn-red" onclick="deleteEvent('${eventId}')"><i class="ti ti-trash"></i> Hapus Event</button>`
+    document.getElementById('upload-section').style.display='block'
+  } else {
+    document.getElementById('stab-panitia').style.display='none'
+    document.getElementById('ed-admin-btns').innerHTML=''
+    document.getElementById('upload-section').style.display='none'
+  }
+  await loadAttendees()
+}
+
+function switchSubTab(t){
+  ['scanner','peserta','panitia'].forEach(x=>{
+    document.getElementById('subtab-'+x).style.display=x===t?'block':'none'
+    document.getElementById('stab-'+x)?.classList.toggle('active',x===t)
+  })
+  if(t==='panitia')loadStaff()
+}
+
+async function loadAttendees(){
+  const {data}=await _supabase.from('attendees').select('*').eq('event_id',currentEventId).order('nama')
+  allAttendees=data||[]
+  renderAttTable();renderPesertaTable();renderSimBtns()
+}
+
+function filterAtt(v){filterText=v;renderAttTable()}
+
+const avatarMap={}
+function getAvatarColor(id){if(!avatarMap[id]){avatarMap[id]=getColor(Object.keys(avatarMap).length)}return avatarMap[id]}
+
+function renderAttTable(){
+  const tbody=document.getElementById('att-body')
+  const ft=filterText.toLowerCase()
+  const list=allAttendees.filter(p=>!ft||(p.nama?.toLowerCase().includes(ft)||p.no_verifikasi?.toLowerCase().includes(ft)))
+  if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="no-data"><i class="ti ti-users"></i>Belum ada peserta</td></tr>';return}
+  tbody.innerHTML=list.map(p=>{
+    const c=getAvatarColor(p.id)
+    return `<tr>
+      <td style="font-family:monospace;font-size:12px;color:#888">${p.no_verifikasi}</td>
+      <td><div class="name-cell"><div class="avatar-sm" style="background:${c.bg};color:${c.text}">${getInitials(p.nama)}</div><span style="font-size:13px;font-weight:500">${p.nama}</span></div></td>
+      <td style="font-size:12px;color:#888">${p.jabatan||'—'}</td>
+      <td style="font-size:12px;color:#888">${p.departemen||'—'}</td>
+      <td style="font-size:13px;font-weight:${p.jam_hadir?600:400}">${p.jam_hadir||'<span style="color:#ccc">—</span>'}</td>
+      <td><input class="inline-note-input" value="${p.keterangan||''}" placeholder="Tambah catatan…" onchange="updateKeterangan('${p.id}',this.value)"/></td>
+    </tr>`
+  }).join('')
+}
+
+function renderPesertaTable(){
+  const tbody=document.getElementById('peserta-body')
+  if(!allAttendees.length){tbody.innerHTML='<tr><td colspan="5" class="no-data"><i class="ti ti-users"></i>Belum ada peserta. Upload file CSV.</td></tr>';return}
+  tbody.innerHTML=allAttendees.map(p=>`<tr>
+    <td style="font-family:monospace;font-size:12px;color:#888">${p.no_verifikasi}</td>
+    <td style="font-weight:500">${p.nama}</td>
+    <td style="font-size:12px;color:#888">${p.jabatan||'—'}</td>
+    <td style="font-size:12px;color:#888">${p.departemen||'—'}</td>
+    <td>${p.hadir?'<span class="badge green">Hadir</span>':'<span class="badge gray">Belum</span>'}</td>
+  </tr>`).join('')
+}
+
+async function updateKeterangan(id,val){
+  await _supabase.from('attendees').update({keterangan:val}).eq('id',id)
+  const p=allAttendees.find(a=>a.id===id);if(p)p.keterangan=val
+}
+
+let currentScannedId=null
+function setQRState(state){
+  document.getElementById('qr-idle-state').style.display=state==='idle'?'flex':'none'
+  document.getElementById('qr-scan-state').style.display=state==='scanning'?'flex':'none'
+  document.getElementById('qr-success-screen').style.display=state==='success'?'flex':'none'
+  document.getElementById('qr-error-screen').style.display=state==='error'?'flex':'none'
+  document.getElementById('scan-line').style.display=state==='scanning'?'block':'none'
+}
+function processId(){const val=document.getElementById('manual-id').value.trim().toUpperCase();if(!val)return;processQR(val)}
+function processQR(id){
+  currentScannedId=null;setQRState('scanning')
+  document.getElementById('found-box').className='found-box'
+  document.getElementById('note-area').style.display='none'
+  setTimeout(()=>{
+    const p=allAttendees.find(a=>a.no_verifikasi===id||a.no_verifikasi===id.toUpperCase())
+    if(!p){setQRState('error');document.getElementById('qr-error-sub').textContent=`"${id}" tidak terdaftar`;setTimeout(()=>setQRState('idle'),3000);return}
+    if(p.hadir){setQRState('error');document.getElementById('qr-error-sub').textContent=`${p.nama} sudah hadir pukul ${p.jam_hadir}`;setTimeout(()=>setQRState('idle'),3000);return}
+    currentScannedId=p.id;setQRState('success')
+    document.getElementById('qr-welcome-name').textContent=p.nama
+    document.getElementById('qr-welcome-sub').textContent=`${p.jabatan||''} · ${p.departemen||''}`
+    document.getElementById('found-name').textContent=p.nama
+    document.getElementById('found-meta').textContent=`${p.no_verifikasi} · ${p.jabatan||''} · ${p.departemen||''}`
+    document.getElementById('found-box').className='found-box show'
+    document.getElementById('note-input').value=''
+    document.getElementById('note-area').style.display='block'
+    document.getElementById('manual-id').value=''
+  },700)
+}
+async function saveAttendance(){
+  if(!currentScannedId)return
+  const jam=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})
+  const keterangan=document.getElementById('note-input').value
+  await _supabase.from('attendees').update({hadir:true,jam_hadir:jam,keterangan}).eq('id',currentScannedId)
+  const p=allAttendees.find(a=>a.id===currentScannedId)
+  if(p){p.hadir=true;p.jam_hadir=jam;p.keterangan=keterangan}
+  currentScannedId=null;setQRState('idle')
+  document.getElementById('found-box').className='found-box'
+  document.getElementById('note-area').style.display='none'
+  renderAttTable();renderPesertaTable();renderSimBtns()
+}
+function renderSimBtns(){
+  const c=document.getElementById('sim-btns')
+  const unscanned=allAttendees.filter(p=>!p.hadir)
+  if(!allAttendees.length){c.innerHTML='<span style="font-size:12px;color:#bbb">Upload peserta terlebih dahulu</span>';return}
+  if(!unscanned.length){c.innerHTML='<span style="font-size:12px;color:#0F6E56">Semua peserta sudah hadir!</span>';return}
+  c.innerHTML=unscanned.slice(0,8).map(p=>`<button class="sim-btn" onclick="processQR('${p.no_verifikasi}')">${p.nama.split(' ')[0]}</button>`).join('')
+}
+
+function parseCSV(text){
+  const lines=text.trim().split(/\r?\n/)
+  if(lines.length<2)return null
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/"/g,'').toLowerCase())
+  const req=['no_verifikasi','nama','jabatan','departemen']
+  for(const r of req){if(!headers.includes(r)){alert(`Kolom "${r}" tidak ditemukan.`);return null}}
+  const rows=[]
+  for(let i=1;i<lines.length;i++){
+    const vals=lines[i].split(',').map(v=>v.trim().replace(/"/g,''))
+    if(vals.every(v=>!v))continue
+    const obj={};headers.forEach((h,idx)=>obj[h]=vals[idx]||'')
+    rows.push({event_id:currentEventId,no_verifikasi:obj.no_verifikasi.toUpperCase(),nama:obj.nama,jabatan:obj.jabatan,departemen:obj.departemen})
+  }
+  return rows
+}
+async function handleCSV(e){
+  const file=e.target.files[0];if(!file)return
+  const text=await file.text()
+  const rows=parseCSV(text)
+  if(!rows||!rows.length){alert('File kosong atau format tidak valid.');return}
+  const {error}=await _supabase.from('attendees').upsert(rows,{onConflict:'event_id,no_verifikasi'})
+  if(error){alert('Error: '+error.message);return}
+  alert(`${rows.length} peserta berhasil diupload!`)
+  e.target.value='';await loadAttendees()
+}
+function downloadTemplate(){
+  const csv=`no_verifikasi,nama,jabatan,departemen\nVRF-001,Nama Peserta,Jabatan,Departemen`
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='template_peserta.csv';a.click()
+}
+function exportCSV(){
+  if(!allAttendees.length){alert('Belum ada data.');return}
+  const rows=[['No. Verifikasi','Nama','Jabatan','Departemen','Jam Hadir','Status','Keterangan']]
+  allAttendees.forEach(p=>rows.push([p.no_verifikasi,p.nama,p.jabatan||'',p.departemen||'',p.jam_hadir||'',p.hadir?'Hadir':'Belum hadir',p.keterangan||'']))
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='kehadiran.csv';a.click()
+}
+
+async function loadStaff(){
+  const {data}=await _supabase.from('event_staff').select('user_id, profiles(id,full_name)').eq('event_id',currentEventId)
+  const tbody=document.getElementById('staff-body')
+  if(!(data||[]).length){tbody.innerHTML='<tr><td colspan="3" class="no-data"><i class="ti ti-users"></i>Belum ada panitia</td></tr>';return}
+  tbody.innerHTML=data.map(s=>`<tr><td style="font-weight:500">${s.profiles?.full_name||'—'}</td><td style="color:#888;font-size:12px">${s.user_id}</td><td><button class="btn btn-sm btn-red" onclick="removeStaff('${s.user_id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')
+}
+async function openAddStaff(){
+  const {data:all}=await _supabase.from('profiles').select('*').eq('role','panitia')
+  const {data:existing}=await _supabase.from('event_staff').select('user_id').eq('event_id',currentEventId)
+  const existIds=(existing||[]).map(e=>e.user_id)
+  const available=(all||[]).filter(u=>!existIds.includes(u.id))
+  document.getElementById('staff-select').innerHTML='<option value="">— Pilih panitia —</option>'+available.map(u=>`<option value="${u.id}">${u.full_name}</option>`).join('')
+  openModal('modal-add-staff')
+}
+async function addStaff(){
+  const uid=document.getElementById('staff-select').value
+  if(!uid){showModalAlert('add-staff-alert','Pilih panitia terlebih dahulu.','error');return}
+  const {error}=await _supabase.from('event_staff').insert({event_id:currentEventId,user_id:uid})
+  if(error){showModalAlert('add-staff-alert',error.message,'error');return}
+  closeModal('modal-add-staff');loadStaff()
+}
+async function removeStaff(uid){
+  if(!confirm('Hapus panitia ini dari event?'))return
+  await _supabase.from('event_staff').delete().eq('event_id',currentEventId).eq('user_id',uid);loadStaff()
+}
+async function deleteEvent(id){
+  if(!confirm('Hapus event ini beserta semua data peserta?'))return
+  await _supabase.from('events').delete().eq('id',id);goPage('events')
+}
+
+async function loadUsers(){
+  const {data}=await _supabase.from('profiles').select('*').order('created_at',{ascending:false})
+  const tbody=document.getElementById('users-body')
+  if(!data?.length){tbody.innerHTML='<tr><td colspan="4" class="no-data">Belum ada user</td></tr>';return}
+  tbody.innerHTML=data.map(u=>`<tr>
+    <td style="font-weight:500">${u.full_name}</td>
+    <td><span class="badge ${u.role==='admin'?'blue':'gray'}">${u.role}</span></td>
+    <td style="color:#888;font-size:12px">${new Date(u.created_at).toLocaleDateString('id-ID')}</td>
+    <td>${u.id!==currentUser.id?`<button class="btn btn-sm btn-outline" onclick="toggleRole('${u.id}','${u.role}')">Jadikan ${u.role==='admin'?'Panitia':'Admin'}</button>`:'<span style="font-size:12px;color:#bbb">Anda</span>'}</td>
+  </tr>`).join('')
+}
+async function toggleRole(id,currentRole){
+  const newRole=currentRole==='admin'?'panitia':'admin'
+  if(!confirm(`Jadikan user ini sebagai ${newRole}?`))return
+  await _supabase.from('profiles').update({role:newRole}).eq('id',id);loadUsers()
+}
+</script>
+</body>
+</html>
