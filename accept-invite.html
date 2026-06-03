@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Terima Undangan — SBP Event Registration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(135deg,#1A1A2E 0%,#2C2C44 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.card{background:#fff;border-radius:20px;width:100%;max-width:480px;box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden}
+.card-header{background:linear-gradient(135deg,#1A1A2E,#2C2C44);padding:2rem;text-align:center;position:relative;overflow:hidden}
+.card-header::before{content:'';position:absolute;width:200px;height:200px;border-radius:50%;border:40px solid rgba(232,160,32,.08);top:-60px;right:-60px}
+.logo{display:inline-flex;align-items:center;gap:10px;margin-bottom:1.25rem}
+.logo-icon{width:44px;height:44px;background:linear-gradient(135deg,#E8A020,#C47F10);border-radius:11px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:21px;box-shadow:0 4px 14px rgba(232,160,32,.4)}
+.logo-text h1{font-family:'Playfair Display',serif;font-size:20px;color:#fff;text-align:left}
+.logo-text p{font-size:10px;color:#E8A020;letter-spacing:2px;text-transform:uppercase;margin-top:1px}
+.invite-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(232,160,32,.15);border:1px solid rgba(232,160,32,.3);border-radius:20px;padding:5px 14px;font-size:12px;color:#E8A020;font-weight:600;margin-bottom:8px}
+.card-title{font-size:22px;font-weight:700;color:#fff;margin-bottom:4px}
+.card-sub{font-size:13px;color:rgba(255,255,255,.5)}
+
+.card-body{padding:2rem}
+
+/* Loading state */
+#state-loading{text-align:center;padding:1rem 0}
+#state-loading i{font-size:40px;color:#E8A020;display:block;margin-bottom:12px}
+#state-loading p{font-size:14px;color:#888}
+
+/* Invalid state */
+#state-invalid{display:none;text-align:center;padding:1rem 0}
+#state-invalid i{font-size:48px;color:#C0392B;display:block;margin-bottom:12px}
+#state-invalid h3{font-size:18px;font-weight:700;color:#1A1A2E;margin-bottom:8px}
+#state-invalid p{font-size:13px;color:#888;line-height:1.6}
+
+/* Already accepted */
+#state-accepted{display:none;text-align:center;padding:1rem 0}
+#state-accepted i{font-size:48px;color:#0F6E56;display:block;margin-bottom:12px}
+#state-accepted h3{font-size:18px;font-weight:700;color:#1A1A2E;margin-bottom:8px}
+#state-accepted p{font-size:13px;color:#888;line-height:1.6;margin-bottom:1rem}
+
+/* Form state */
+#state-form{display:none}
+
+/* Info box */
+.info-box{background:#FDF3E0;border:1px solid rgba(232,160,32,.3);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.5rem}
+.info-box-title{font-size:12px;font-weight:700;color:#C47F10;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem;display:flex;align-items:center;gap:6px}
+.info-row{display:flex;gap:8px;margin-bottom:5px;font-size:13px;align-items:center}
+.info-row:last-child{margin-bottom:0}
+.info-label{color:#888;min-width:110px;font-size:12px}
+.info-val{color:#1A1A2E;font-weight:600;font-size:13px}
+
+.section-title{font-size:14px;font-weight:700;color:#1A1A2E;margin-bottom:1rem;display:flex;align-items:center;gap:6px}
+.section-title i{color:#E8A020}
+
+.fg{margin-bottom:1rem}
+.fg label{display:block;font-size:11px;font-weight:700;color:#1A1A2E;margin-bottom:6px;letter-spacing:.4px;text-transform:uppercase}
+.fg input{width:100%;padding:11px 14px;border:1.5px solid #E8E9EC;border-radius:10px;font-size:14px;font-family:inherit;outline:none;transition:all .2s;color:#1A1A2E}
+.fg input:focus{border-color:#E8A020;box-shadow:0 0 0 3px rgba(232,160,32,.1)}
+.fg input:disabled{background:#f8f9fb;color:#888;cursor:not-allowed}
+.fg .hint{font-size:11px;color:#888;margin-top:4px}
+
+.btn-submit{width:100%;padding:13px;border:none;border-radius:10px;background:linear-gradient(135deg,#E8A020,#C47F10);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;box-shadow:0 4px 14px rgba(232,160,32,.35);margin-top:.5rem}
+.btn-submit:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(232,160,32,.45)}
+.btn-submit:disabled{opacity:.7;transform:none;cursor:not-allowed}
+
+.btn-login{width:100%;padding:11px;border:1.5px solid #E8E9EC;border-radius:10px;background:#fff;color:#1A1A2E;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;margin-top:.75rem;text-decoration:none}
+.btn-login:hover{border-color:#E8A020;color:#E8A020}
+
+.alert-msg{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:1rem;display:none;align-items:center;gap:8px}
+.alert-msg.error{background:#FDECEA;color:#C0392B;border:1px solid #f5c6c2;display:flex}
+.alert-msg.success{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;display:flex}
+
+#state-success{display:none;text-align:center;padding:1rem 0}
+#state-success i{font-size:56px;color:#0F6E56;display:block;margin-bottom:16px}
+#state-success h3{font-size:20px;font-weight:700;color:#1A1A2E;margin-bottom:8px}
+#state-success p{font-size:13px;color:#888;line-height:1.7;margin-bottom:1.5rem}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-header">
+    <div class="logo">
+      <div class="logo-icon"><i class="ti ti-qrcode"></i></div>
+      <div class="logo-text"><h1>SBP Group</h1><p>Event Registration</p></div>
+    </div>
+    <div class="invite-badge"><i class="ti ti-mail" style="font-size:13px"></i> Undangan Panitia</div>
+    <div class="card-title" id="header-event-name">Memuat...</div>
+    <div class="card-sub" id="header-event-date">—</div>
+  </div>
+
+  <div class="card-body">
+
+    <!-- Loading -->
+    <div id="state-loading">
+      <i class="ti ti-loader-2 spin"></i>
+      <p>Memverifikasi undangan...</p>
+    </div>
+
+    <!-- Invalid token -->
+    <div id="state-invalid">
+      <i class="ti ti-circle-x"></i>
+      <h3>Link Tidak Valid</h3>
+      <p>Link undangan ini tidak ditemukan atau sudah tidak berlaku.<br/>Hubungi admin event untuk mendapatkan link baru.</p>
+    </div>
+
+    <!-- Already accepted -->
+    <div id="state-accepted">
+      <i class="ti ti-circle-check"></i>
+      <h3>Undangan Sudah Diterima</h3>
+      <p>Akun Anda sudah terdaftar dan terhubung ke event ini.<br/>Silakan login untuk mengakses sistem.</p>
+      <a href="/" class="btn-login"><i class="ti ti-login"></i> Masuk ke Sistem</a>
+    </div>
+
+    <!-- Register Form -->
+    <div id="state-form">
+      <div class="info-box" id="event-info">
+        <div class="info-box-title"><i class="ti ti-calendar-event"></i> Detail Undangan</div>
+        <div class="info-row"><span class="info-label">Event</span><span class="info-val" id="info-event">—</span></div>
+        <div class="info-row"><span class="info-label">Tanggal</span><span class="info-val" id="info-date">—</span></div>
+        <div class="info-row"><span class="info-label">Lokasi</span><span class="info-val" id="info-loc">—</span></div>
+        <div class="info-row"><span class="info-label">Jabatan Panitia</span><span class="info-val" id="info-jabpan">—</span></div>
+      </div>
+
+      <div class="section-title"><i class="ti ti-user-circle"></i> Data Anda</div>
+
+      <div class="alert-msg" id="form-alert"></div>
+
+      <div class="fg">
+        <label>Nama Lengkap</label>
+        <input type="text" id="f-nama" disabled/>
+      </div>
+      <div class="fg">
+        <label>NIK</label>
+        <input type="text" id="f-nik" disabled/>
+      </div>
+      <div class="fg">
+        <label>Jabatan</label>
+        <input type="text" id="f-jabatan" disabled/>
+      </div>
+      <div class="fg">
+        <label>Departemen</label>
+        <input type="text" id="f-dept" disabled/>
+      </div>
+
+      <div class="section-title" style="margin-top:1.5rem"><i class="ti ti-lock"></i> Buat Akun Login</div>
+
+      <div class="fg">
+        <label>Email</label>
+        <input type="email" id="f-email" disabled/>
+        <div class="hint">Email ini digunakan untuk login ke sistem</div>
+      </div>
+      <div class="fg">
+        <label>Password *</label>
+        <input type="password" id="f-password" placeholder="Minimal 6 karakter"/>
+      </div>
+      <div class="fg">
+        <label>Konfirmasi Password *</label>
+        <input type="password" id="f-password2" placeholder="Ulangi password"/>
+      </div>
+
+      <button class="btn-submit" id="btn-submit" onclick="doRegister()">
+        <i class="ti ti-circle-check"></i> Terima Undangan & Buat Akun
+      </button>
+    </div>
+
+    <!-- Success -->
+    <div id="state-success">
+      <i class="ti ti-circle-check"></i>
+      <h3>Akun Berhasil Dibuat!</h3>
+      <p>Selamat datang di tim panitia!<br/>Akun Anda sudah aktif dan terhubung ke event.<br/>Silakan login untuk mulai bekerja.</p>
+      <a href="/" class="btn-login"><i class="ti ti-login"></i> Masuk ke Sistem</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SB_URL='https://brmpyrlmmvjrataeovdm.supabase.co'
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJybXB5cmxtbXZqcmF0YWVvdmRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzUwODAsImV4cCI6MjA5NTk1MTA4MH0.XzlHNnJl7ZK3HRS4haM61NPPVJnri4-7EdQNHWG1SBo'
+const db=window.supabase.createClient(SB_URL,SB_KEY)
+
+let invData=null
+let evData=null
+
+function setState(s){
+  ['loading','invalid','accepted','form','success'].forEach(x=>{
+    document.getElementById('state-'+x).style.display=x===s?(x==='form'?'block':'block'):'none'
+  })
+}
+
+function fmtDate(d){
+  return new Date(d).toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+}
+
+;(async()=>{
+  const params=new URLSearchParams(window.location.search)
+  const token=params.get('token')
+
+  if(!token){setState('invalid');return}
+
+  // Load invitation by token
+  const {data:inv,error}=await db
+    .from('invitations')
+    .select('*,events(*)')
+    .eq('token',token)
+    .single()
+
+  if(error||!inv){setState('invalid');return}
+
+  invData=inv
+  evData=inv.events
+
+  // Update header
+  document.getElementById('header-event-name').textContent=evData.name
+  document.getElementById('header-event-date').textContent=fmtDate(evData.date)+(evData.location?' · '+evData.location:'')
+
+  if(inv.status==='accepted'){
+    setState('accepted');return
+  }
+
+  // Fill form
+  document.getElementById('info-event').textContent=evData.name
+  document.getElementById('info-date').textContent=fmtDate(evData.date)
+  document.getElementById('info-loc').textContent=evData.location||'—'
+  document.getElementById('info-jabpan').textContent=inv.jabatan_kepanitiaan||'—'
+  document.getElementById('f-nama').value=inv.nama
+  document.getElementById('f-nik').value=inv.nik
+  document.getElementById('f-jabatan').value=inv.jabatan||'—'
+  document.getElementById('f-dept').value=inv.departemen||'—'
+  document.getElementById('f-email').value=inv.email
+
+  setState('form')
+})()
+
+async function doRegister(){
+  const pw=document.getElementById('f-password').value
+  const pw2=document.getElementById('f-password2').value
+
+  if(!pw||!pw2){showAlert('Isi password terlebih dahulu.','error');return}
+  if(pw.length<6){showAlert('Password minimal 6 karakter.','error');return}
+  if(pw!==pw2){showAlert('Password dan konfirmasi tidak cocok.','error');return}
+
+  const btn=document.getElementById('btn-submit')
+  btn.disabled=true
+  btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Memproses...'
+
+  try{
+    // 1. Buat akun auth
+    const {data:authData,error:authErr}=await db.auth.signUp({
+      email:invData.email,
+      password:pw,
+      options:{
+        data:{
+          full_name:invData.nama,
+          role:'panitia',
+          nik:invData.nik
+        }
+      }
+    })
+
+    if(authErr){
+      if(authErr.message.includes('already registered')){
+        showAlert('Email ini sudah terdaftar. Silakan login langsung.','error')
+        setTimeout(()=>{window.location.href='/'},2500)
+        return
+      }
+      showAlert('Gagal membuat akun: '+authErr.message,'error')
+      btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Terima Undangan & Buat Akun'
+      return
+    }
+
+    const userId=authData.user.id
+
+    // 2. Tunggu profile terbuat oleh trigger
+    await new Promise(r=>setTimeout(r,1500))
+
+    // 3. Tambahkan ke event_staff
+    await db.from('event_staff').upsert({
+      event_id:invData.event_id,
+      user_id:userId
+    },{onConflict:'event_id,user_id'})
+
+    // 4. Update status invitation
+    await db.from('invitations').update({status:'accepted'}).eq('id',invData.id)
+
+    // 5. Update profile dengan NIK
+    await db.from('profiles').update({
+      full_name:invData.nama,
+      role:'panitia'
+    }).eq('id',userId)
+
+    setState('success')
+
+  }catch(e){
+    showAlert('Terjadi kesalahan: '+e.message,'error')
+    btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Terima Undangan & Buat Akun'
+  }
+}
+
+function showAlert(msg,type){
+  const el=document.getElementById('form-alert')
+  el.innerHTML='<i class="ti ti-'+(type==='error'?'alert-circle':'circle-check')+'"></i> '+msg
+  el.className='alert-msg '+type
+  el.style.display='flex'
+}
+</script>
+</body>
+</html>
