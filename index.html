@@ -365,6 +365,13 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
           <div class="scanner-layout">
             <div class="card" style="padding:1.25rem">
               <div class="card-title" style="margin-bottom:1rem"><i class="ti ti-scan"></i> Scanner QR ID Card</div>
+              <div style="background:var(--gold-light);border:1px solid rgba(232,160,32,.3);border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:1rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                  <span style="font-size:11px;font-weight:700;color:var(--gold-dark);text-transform:uppercase;letter-spacing:.5px"><i class="ti ti-clock-hour-3" style="vertical-align:-2px"></i> Sesi Absensi Aktif</span>
+                  <button id="btn-manage-sessions" style="background:none;border:none;color:var(--gold-dark);cursor:pointer;font-size:12px;font-weight:600;display:none" onclick="openSessionModal()"><i class="ti ti-settings"></i> Kelola</button>
+                </div>
+                <select id="session-sel" onchange="onSessionChange()" style="width:100%;padding:8px 10px;border:1.5px solid rgba(232,160,32,.4);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;font-weight:600;color:var(--dark)"></select>
+              </div>
               <div class="qv" id="qv">
                 <div class="qc"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span></div>
                 <div class="qs" id="q-idle">
@@ -389,7 +396,7 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
               </div>
 
               <!-- Tombol Kamera -->
-              <button class="btn-cam" style="margin-top:.9rem" onclick="startCamera()">
+              <button class="btn-cam" style="margin-top:.75rem" onclick="startCamera()">
                 <i class="ti ti-camera"></i> Buka Kamera Scanner
               </button>
 
@@ -402,7 +409,7 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
 
               <!-- Manual input -->
               <div style="display:flex;gap:8px">
-                <input type="text" id="mid" placeholder="NIK / No. Karyawan…" onkeydown="if(event.key==='Enter')scanId()" style="flex:1;padding:9px 13px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;outline:none;font-family:inherit;transition:all .2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--gray2)'"/>
+                <input type="text" id="mid" placeholder="NIK Karyawan / No. KTP…" onkeydown="if(event.key==='Enter')scanId()" style="flex:1;padding:9px 13px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;outline:none;font-family:inherit;transition:all .2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--gray2)'"/>
                 <button class="btn btn-gold btn-sm" onclick="scanId()"><i class="ti ti-arrow-right"></i></button>
               </div>
 
@@ -440,7 +447,7 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
                     <col style="width:100px"><col style="width:80px"><col style="width:70px"><col style="width:110px">
                   </colgroup>
                   <thead><tr>
-                    <th>No. Karyawan</th><th>NIK</th><th>Nama</th>
+                    <th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th>
                     <th>Departemen</th><th>No. HP</th><th>Jam Hadir</th><th>Keterangan</th>
                   </tr></thead>
                   <tbody id="att-body"></tbody>
@@ -481,7 +488,7 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
             <div class="table-wrap">
               <table>
                 <thead><tr>
-                  <th>No. Karyawan</th><th>NIK</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>No. HP</th><th>Status</th>
+                  <th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>No. HP</th><th>Status</th>
                 </tr></thead>
                 <tbody id="ps-body"></tbody>
               </table>
@@ -627,6 +634,25 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
 
 
 
+<!-- MODAL: Kelola Sesi -->
+<div class="mo" id="mo-sessions">
+  <div class="md">
+    <div class="mh">
+      <h3><i class="ti ti-clock-hour-3" style="color:var(--gold);margin-right:6px"></i>Kelola Sesi Absensi</h3>
+      <button style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text2)" onclick="closeModal('mo-sessions')">×</button>
+    </div>
+    <div class="mc">
+      <div class="alert-msg" id="session-alert"></div>
+      <div id="session-list" style="margin-bottom:1rem"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="new-session-name" placeholder="Nama sesi baru (mis: Makan Siang)" style="flex:1;padding:9px 12px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')addSession()"/>
+        <button class="btn btn-gold btn-sm" onclick="addSession()"><i class="ti ti-plus"></i> Tambah</button>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-sm btn-outline" onclick="closeModal('mo-sessions')">Tutup</button></div>
+  </div>
+</div>
+
 <!-- CAMERA MODAL -->
 <div class="cam-modal" id="cam-modal">
   <div class="cam-title"><i class="ti ti-id-badge" style="color:var(--gold)"></i> Scan QR ID Card SBP</div>
@@ -717,6 +743,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const db=window.supabase.createClient(SB_URL,SB_KEY)
 let CU=null,CP=null,CEV=null,CEVNAME='',ATT=[],FT=''
 let currentEvData=null
+let SESSIONS=[],SESS_ATT=[],activeSession=null
 const AVC=[{bg:'#FDF3E0',t:'#C47F10'},{bg:'#dcfce7',t:'#166534'},{bg:'#ede9fe',t:'#6d28d9'},{bg:'#dbeafe',t:'#1e40af'},{bg:'#fee2e2',t:'#991b1b'},{bg:'#fce7f3',t:'#9d174d'}]
 const AVM={}
 function gc(id){if(!AVM[id])AVM[id]=AVC[Object.keys(AVM).length%AVC.length];return AVM[id]}
@@ -997,7 +1024,7 @@ function lockScanner(){
 function unlockScanner(){
   document.querySelectorAll('.btn-cam').forEach(b=>b.style.display='')
   const mid=document.getElementById('mid')
-  if(mid){mid.disabled=false;mid.placeholder='NIK / No. Karyawan…';mid.style.opacity='1'}
+  if(mid){mid.disabled=false;mid.placeholder='NIK Karyawan / No. KTP…';mid.style.opacity='1'}
   document.querySelectorAll('[onclick="scanId()"]').forEach(b=>b.style.display='')
   const old=document.getElementById('expired-banner')
   if(old) old.remove()
@@ -1036,12 +1063,14 @@ async function openDet(evId,evName){
     window._isKetua=isKetua
     setTopbar(ev.name,dateStr+' · '+(ev.location||'—')+' · <span style="color:#F09595;font-weight:600"><i class="ti ti-lock" style="font-size:12px"></i> Expired '+new Date(ev.expired_date).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})+'</span>','')
     await loadAtt()
+    await loadSessions()
     showExpiredBanner()
     lockScanner()
   } else {
     document.getElementById('upload-sec').style.display=(isAdmin||isKetua)?'block':'none'
     unlockScanner()
     await loadAtt()
+    await loadSessions()
   }
 }
 
@@ -1057,21 +1086,108 @@ function switchSub(t){
 
 async function loadAtt(){
   const {data}=await db.from('attendees').select('*').eq('event_id',CEV).order('nama')
-  ATT=data||[];renderAtt();renderPs();}
+  ATT=data||[]
+  await loadSessions()
+  renderAtt();renderPs()
+}
+
+async function loadSessions(){
+  let {data:sess}=await db.from('sessions').select('*').eq('event_id',CEV).order('sort_order')
+  if(!sess||!sess.length){
+    const {data:newSess}=await db.from('sessions').insert({event_id:CEV,name:'Sesi 1',sort_order:1}).select()
+    sess=newSess||[]
+  }
+  SESSIONS=sess
+  const sessIds=SESSIONS.map(s=>s.id)
+  if(sessIds.length){
+    const {data:sa}=await db.from('session_attendance').select('*').in('session_id',sessIds)
+    SESS_ATT=sa||[]
+  } else SESS_ATT=[]
+  if(!activeSession||!SESSIONS.find(s=>s.id===activeSession)) activeSession=SESSIONS[0]?.id||null
+  renderSessionSelect()
+}
+
+function renderSessionSelect(){
+  const sel=document.getElementById('session-sel')
+  if(!sel)return
+  sel.innerHTML=SESSIONS.map(s=>`<option value="${s.id}" ${s.id===activeSession?'selected':''}>${s.name}</option>`).join('')
+  const btn=document.getElementById('btn-manage-sessions')
+  if(btn) btn.style.display=(CP?.role==='admin'||window._isKetua)?'inline':'none'
+}
+
+function onSessionChange(){
+  activeSession=document.getElementById('session-sel').value
+  renderAtt()
+}
+
+function openSessionModal(){
+  renderSessionList()
+  openModal('mo-sessions')
+}
+function renderSessionList(){
+  const el=document.getElementById('session-list')
+  el.innerHTML=SESSIONS.map(s=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray2)">
+      <input type="text" value="${s.name}" onchange="renameSession('${s.id}',this.value)" style="flex:1;padding:7px 10px;border:1.5px solid var(--gray2);border-radius:8px;font-size:13px;font-family:inherit;outline:none"/>
+      <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px" onclick="deleteSession('${s.id}')" title="Hapus sesi"><i class="ti ti-trash"></i></button>
+    </div>`).join('')
+}
+async function addSession(){
+  const name=document.getElementById('new-session-name').value.trim()
+  if(!name){sa('session-alert','Isi nama sesi.','error');return}
+  const maxOrder=Math.max(0,...SESSIONS.map(s=>s.sort_order||0))
+  const {error}=await db.from('sessions').insert({event_id:CEV,name,sort_order:maxOrder+1})
+  if(error){sa('session-alert',error.message,'error');return}
+  document.getElementById('new-session-name').value=''
+  await loadSessions();renderSessionList();renderAtt()
+}
+async function renameSession(id,name){
+  if(!name.trim())return
+  await db.from('sessions').update({name:name.trim()}).eq('id',id)
+  await loadSessions();renderAtt()
+}
+async function deleteSession(id){
+  if(SESSIONS.length<=1){sa('session-alert','Minimal harus ada 1 sesi.','error');return}
+  if(!confirm('Hapus sesi ini beserta data absensinya?'))return
+  await db.from('sessions').delete().eq('id',id)
+  if(activeSession===id)activeSession=null
+  await loadSessions();renderSessionList();renderAtt()
+}
+
+function getSessAtt(attendeeId,sessionId){
+  return SESS_ATT.find(sa=>sa.attendee_id===attendeeId&&sa.session_id===sessionId)
+}
 
 function filterAtt(v){FT=v;renderAtt()}
 
 function renderAtt(){
   const tb=document.getElementById('att-body'),ft=FT.toLowerCase()
   const list=ATT.filter(p=>!ft||(p.nama?.toLowerCase().includes(ft)||p.nik?.includes(ft)||p.no_karyawan?.includes(ft)))
-  if(!list.length){tb.innerHTML='<tr><td colspan="7" class="nd"><i class="ti ti-users"></i>Belum ada peserta</td></tr>';return}
-  tb.innerHTML=list.map(p=>{const c=gc(p.id);return`<tr>
+
+  // Header dinamis: satu kolom jam per sesi
+  const thead=document.querySelector('#sub-scan thead tr')
+  const colgroup=document.querySelector('#sub-scan colgroup')
+  if(thead){
+    thead.innerHTML='<th>NIK Karyawan</th><th>Nama</th>'
+      +SESSIONS.map(s=>`<th>${s.name}</th>`).join('')
+      +'<th>Keterangan</th>'
+    if(colgroup) colgroup.remove()
+  }
+
+  const totalCols=3+SESSIONS.length
+  if(!list.length){tb.innerHTML=`<tr><td colspan="${totalCols}" class="nd"><i class="ti ti-users"></i>Belum ada peserta</td></tr>`;return}
+
+  tb.innerHTML=list.map(p=>{const c=gc(p.id)
+    const sessCells=SESSIONS.map(s=>{
+      const sa=getSessAtt(p.id,s.id)
+      return sa
+        ?`<td><span style="font-size:13px;font-weight:700;color:#0F6E56">${(sa.jam_hadir||'').slice(0,5)}</span></td>`
+        :'<td><span style="color:var(--gray2)">—</span></td>'
+    }).join('')
+    return`<tr>
     <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.no_karyawan||'—'}</td>
-    <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.nik}</td>
     <td><div class="nc"><div class="av" style="background:${c.bg};color:${c.t}">${gi(p.nama)}</div><span style="font-size:13px;font-weight:600">${p.nama}</span></div></td>
-    <td style="font-size:12px;color:var(--text2)">${p.departemen||'—'}</td>
-    <td style="font-size:12px;color:var(--text2)">${p.no_hp||'—'}</td>
-    <td>${p.jam_hadir?`<span style="font-size:13px;font-weight:700">${p.jam_hadir}</span>`:'<span style="color:var(--gray2)">—</span>'}</td>
+    ${sessCells}
     <td><input class="in-note" value="${p.keterangan||''}" placeholder="Catatan…" onchange="updNote('${p.id}',this.value)" ${window._evExpired?'disabled style="opacity:.5"':''}/></td>
   </tr>`}).join('')
 }
@@ -1099,8 +1215,8 @@ function renderPs(){
   const thead=document.querySelector('#sub-ps thead tr')
   if(thead){
     thead.innerHTML=isPaidEvent
-      ?'<th>No. Karyawan</th><th>NIK</th><th>Nama</th><th>Departemen</th><th>Paket</th><th>Tagihan</th><th>Pembayaran</th><th>Hadir</th>'
-      :'<th>No. Karyawan</th><th>NIK</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>No. HP</th><th>Status</th>'
+      ?'<th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th><th>Departemen</th><th>Paket</th><th>Tagihan</th><th>Pembayaran</th><th>Hadir</th>'
+      :'<th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>No. HP</th><th>Status</th>'
   }
 
   if(!ATT.length){tb.innerHTML='<tr><td colspan="8" class="nd"><i class="ti ti-users"></i>Belum ada peserta</td></tr>';return}
@@ -1190,17 +1306,19 @@ function doScan(raw){
   document.getElementById('note-wrap').style.display='none'
 
   setTimeout(()=>{
+    if(!activeSession){
+      setQS('err')
+      document.getElementById('q-err-sub').textContent='Pilih sesi absensi terlebih dahulu'
+      setTimeout(()=>setQS('idle'),3000);return
+    }
     const parts=parseQRData(raw)
     let p=null
 
     if(parts.length>=3){
-      // Format ID Card: [no_karyawan, nama, nik, no_hp]
-      const nik=parts[2]?.replace(/\D/g,'') // ambil angka saja
+      const nik=parts[2]?.replace(/\D/g,'')
       p=ATT.find(a=>a.nik===nik||a.nik===parts[2])
-      // Fallback: cari by no_karyawan
       if(!p) p=ATT.find(a=>a.no_karyawan===parts[0])
     } else {
-      // Input manual: coba NIK atau no_karyawan
       const val=parts[0]
       p=ATT.find(a=>a.nik===val||a.no_karyawan===val)
     }
@@ -1210,17 +1328,21 @@ function doScan(raw){
       document.getElementById('q-err-sub').textContent='Data tidak ditemukan dalam daftar peserta event ini'
       setTimeout(()=>setQS('idle'),3500);return
     }
-    if(p.hadir){
+
+    // Cek apakah sudah absen di sesi aktif
+    const existing=getSessAtt(p.id,activeSession)
+    if(existing){
+      const sessName=SESSIONS.find(s=>s.id===activeSession)?.name||''
       setQS('err')
-      document.getElementById('q-err-sub').textContent=p.nama+' sudah tercatat hadir pukul '+p.jam_hadir
+      document.getElementById('q-err-sub').textContent=p.nama+' sudah absen di '+sessName+' pukul '+existing.jam_hadir
       setTimeout(()=>setQS('idle'),3500);return
     }
 
     CSI=p.id;setQS('ok')
     document.getElementById('q-ok-name').textContent=p.nama
-    document.getElementById('q-ok-sub').textContent=(p.jabatan||'')+(p.departemen?' · '+p.departemen:'')+(p.no_karyawan?' · No. '+p.no_karyawan:'')
+    document.getElementById('q-ok-sub').textContent=(p.no_karyawan?'NIK '+p.no_karyawan+' · ':'')+(p.jabatan||'')+(p.departemen?' · '+p.departemen:'')
     document.getElementById('fb-name').textContent=p.nama
-    document.getElementById('fb-meta').textContent='NIK: '+p.nik+(p.no_karyawan?' · No. Karyawan: '+p.no_karyawan:'')+(p.departemen?' · '+p.departemen:'')
+    document.getElementById('fb-meta').textContent=(p.no_karyawan?'NIK Karyawan: '+p.no_karyawan+' · ':'')+'No. KTP: '+p.nik+(p.departemen?' · '+p.departemen:'')
     document.getElementById('fb').className='fb show'
     document.getElementById('note-inp').value=''
     document.getElementById('note-wrap').style.display='block'
@@ -1231,17 +1353,19 @@ function doScan(raw){
 function processQR(val){doScan(val)}
 
 async function saveAtt(){
-  if(!CSI)return
-  // Format jam HH:MM yang kompatibel dengan semua HP
+  if(!CSI||!activeSession)return
   const now=new Date()
   const jam=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')
   const ket=document.getElementById('note-inp').value
-  const {error}=await db.from('attendees').update({hadir:true,jam_hadir:jam,keterangan:ket}).eq('id',CSI)
+  // Insert ke session_attendance
+  const {error}=await db.from('session_attendance').insert({session_id:activeSession,attendee_id:CSI,jam_hadir:jam,keterangan:ket})
   if(error){alert('Gagal menyimpan: '+error.message);return}
+  // Update attendees.hadir untuk kompatibilitas laporan lama (hadir = pernah absen minimal 1 sesi)
+  await db.from('attendees').update({hadir:true,jam_hadir:jam}).eq('id',CSI).is('jam_hadir',null)
+  await db.from('attendees').update({hadir:true}).eq('id',CSI)
   CSI=null;setQS('idle')
   document.getElementById('fb').className='fb'
   document.getElementById('note-wrap').style.display='none'
-  // Reload dari DB agar data akurat
   await loadAtt()
 }
 
@@ -1324,17 +1448,24 @@ function makeCSV(rows,header){
 function dlCSV(csv,filename){
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download=filename;a.click()
 }
+function sessJam(p,s){
+  const sa=getSessAtt(p.id,s.id)
+  return sa?(sa.jam_hadir||'').slice(0,5):''
+}
 function dlAll(){
   if(!ATT.length){alert('Belum ada data peserta.');return}
-  const h=['No. Karyawan','Nama','NIK','No. HP','Jabatan','Departemen','Jam Hadir','Status','Keterangan']
-  const rows=ATT.map(p=>[p.no_karyawan,p.nama,p.nik,p.no_hp,p.jabatan,p.departemen,p.jam_hadir||'',p.hadir?'Hadir':'Belum Hadir',p.keterangan])
+  const h=['NIK Karyawan','Nama','No. KTP','No. HP','Jabatan','Departemen',...SESSIONS.map(s=>'Jam '+s.name),'Status','Keterangan']
+  const rows=ATT.map(p=>{
+    const anyHadir=SESSIONS.some(s=>getSessAtt(p.id,s.id))||p.hadir
+    return [p.no_karyawan,p.nama,p.nik,p.no_hp,p.jabatan,p.departemen,...SESSIONS.map(s=>sessJam(p,s)),anyHadir?'Hadir':'Belum Hadir',p.keterangan]
+  })
   dlCSV(makeCSV(rows,h),'Daftar Peserta - '+CEVNAME+'.csv')
 }
 function dlHadir(){
-  const hadir=ATT.filter(p=>p.hadir)
+  const hadir=ATT.filter(p=>p.hadir||SESSIONS.some(s=>getSessAtt(p.id,s.id)))
   if(!hadir.length){alert('Belum ada peserta yang hadir.');return}
-  const h=['No. Karyawan','Nama','NIK','No. HP','Jabatan','Departemen','Jam Hadir','Keterangan']
-  const rows=hadir.map(p=>[p.no_karyawan,p.nama,p.nik,p.no_hp,p.jabatan,p.departemen,p.jam_hadir,p.keterangan])
+  const h=['NIK Karyawan','Nama','No. KTP','No. HP','Jabatan','Departemen',...SESSIONS.map(s=>'Jam '+s.name),'Keterangan']
+  const rows=hadir.map(p=>[p.no_karyawan,p.nama,p.nik,p.no_hp,p.jabatan,p.departemen,...SESSIONS.map(s=>sessJam(p,s)),p.keterangan])
   dlCSV(makeCSV(rows,h),'Laporan Kehadiran - '+CEVNAME+'.csv')
 }
 
