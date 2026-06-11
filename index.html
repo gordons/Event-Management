@@ -649,6 +649,45 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
         <div class="fgi"><label>Lokasi</label><input type="text" id="ev-loc" placeholder="Gedung / Ruangan"/></div>
       </div>
       <div class="fgi"><label>Tanggal Expired *<span style="font-weight:400;color:var(--text2);margin-left:4px">(setelah tanggal ini event terkunci)</span></label><input type="date" id="ev-expired"/></div>
+
+      <div style="border-top:1px solid var(--gray2);margin:1.25rem 0;padding-top:1.25rem">
+        <div class="fgi">
+          <label>Tipe Pendaftaran Peserta *</label>
+          <select id="ev-enroll" onchange="toggleEnrollOptions()" style="width:100%;padding:9px 12px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none">
+            <option value="admin">Admin Enrolled — admin upload data peserta (CSV)</option>
+            <option value="self">Self Enrolled — peserta daftar mandiri via link</option>
+          </select>
+        </div>
+        <div id="self-options" style="display:none">
+          <div class="fgi">
+            <label>Batas Akhir Pendaftaran *<span style="font-weight:400;color:var(--text2);margin-left:4px">(setelah tanggal ini pendaftaran ditutup)</span></label>
+            <input type="date" id="ev-enroll-deadline"/>
+          </div>
+          <div class="fgi">
+            <label>Biaya Pendaftaran</label>
+            <select id="ev-paid" onchange="togglePaidOptions()" style="width:100%;padding:9px 12px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none">
+              <option value="free">Gratis</option>
+              <option value="paid">Berbayar</option>
+            </select>
+          </div>
+          <div id="paid-options" style="display:none">
+            <div class="fgi">
+              <label>Paket Pendaftaran *</label>
+              <div id="pkg-rows"></div>
+              <button type="button" class="btn btn-sm btn-outline" style="margin-top:6px" onclick="addPkgRow()"><i class="ti ti-plus"></i> Tambah Paket</button>
+            </div>
+            <div class="fgi">
+              <label>Info Rekening Transfer *</label>
+              <textarea id="ev-rekening" placeholder="Contoh:&#10;BCA 1234567890 a.n. Bendahara Event&#10;Mandiri 0987654321 a.n. Panitia" style="width:100%;padding:9px 12px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none;resize:vertical;min-height:70px"></textarea>
+            </div>
+            <div class="fgi">
+              <label>QRIS (opsional)</label>
+              <input type="file" id="ev-qris" accept="image/*" style="width:100%;padding:8px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;font-family:inherit"/>
+              <div style="font-size:11px;color:var(--text2);margin-top:4px">Upload gambar QRIS untuk memudahkan pembayaran</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="mf">
       <button class="btn btn-sm btn-outline" onclick="closeModal('mo-ev')">Batal</button>
@@ -677,6 +716,7 @@ const SB_URL='https://brmpyrlmmvjrataeovdm.supabase.co'
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJybXB5cmxtbXZqcmF0YWVvdmRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzUwODAsImV4cCI6MjA5NTk1MTA4MH0.XzlHNnJl7ZK3HRS4haM61NPPVJnri4-7EdQNHWG1SBo'
 const db=window.supabase.createClient(SB_URL,SB_KEY)
 let CU=null,CP=null,CEV=null,CEVNAME='',ATT=[],FT=''
+let currentEvData=null
 const AVC=[{bg:'#FDF3E0',t:'#C47F10'},{bg:'#dcfce7',t:'#166534'},{bg:'#ede9fe',t:'#6d28d9'},{bg:'#dbeafe',t:'#1e40af'},{bg:'#fee2e2',t:'#991b1b'},{bg:'#fce7f3',t:'#9d174d'}]
 const AVM={}
 function gc(id){if(!AVM[id])AVM[id]=AVC[Object.keys(AVM).length%AVC.length];return AVM[id]}
@@ -820,17 +860,98 @@ async function loadEvents(){
   renderEventCards(evs,'events-grid')
 }
 
+function toggleEnrollOptions(){
+  const v=document.getElementById('ev-enroll').value
+  document.getElementById('self-options').style.display=v==='self'?'block':'none'
+}
+function togglePaidOptions(){
+  const v=document.getElementById('ev-paid').value
+  document.getElementById('paid-options').style.display=v==='paid'?'block':'none'
+  if(v==='paid'&&document.getElementById('pkg-rows').children.length===0) addPkgRow()
+}
+function addPkgRow(){
+  const row=document.createElement('div')
+  row.className='pkg-row'
+  row.style.cssText='display:flex;gap:8px;margin-bottom:6px;align-items:center'
+  row.innerHTML=`
+    <input type="text" class="pkg-name" placeholder="Nama paket" style="flex:2;padding:8px 10px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none"/>
+    <input type="number" class="pkg-price" placeholder="Harga (Rp)" min="0" style="flex:1;padding:8px 10px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none"/>
+    <button type="button" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px" onclick="this.parentElement.remove()"><i class="ti ti-trash"></i></button>`
+  document.getElementById('pkg-rows').appendChild(row)
+}
+
 async function buatEvent(){
   const name=document.getElementById('ev-name').value.trim()
   const date=document.getElementById('ev-date').value
   if(!name||!date){sa('ev-alert','Nama dan tanggal wajib diisi.','error');return}
+
+  const enrollType=document.getElementById('ev-enroll').value
+  const isPaid=enrollType==='self'&&document.getElementById('ev-paid').value==='paid'
+  if(enrollType==='self'&&!document.getElementById('ev-enroll-deadline').value){
+    sa('ev-alert','Batas akhir pendaftaran wajib diisi untuk event self enrolled.','error');return
+  }
+
+  // Validasi paket jika berbayar
+  let pkgs=[]
+  if(isPaid){
+    const rows=document.querySelectorAll('#pkg-rows .pkg-row')
+    rows.forEach(r=>{
+      const n=r.querySelector('.pkg-name').value.trim()
+      const p=parseFloat(r.querySelector('.pkg-price').value)||0
+      if(n) pkgs.push({name:n,price:p})
+    })
+    if(!pkgs.length){sa('ev-alert','Tambahkan minimal 1 paket untuk event berbayar.','error');return}
+    if(!document.getElementById('ev-rekening').value.trim()){sa('ev-alert','Info rekening wajib diisi untuk event berbayar.','error');return}
+  }
+
   const btn=document.getElementById('btn-save-ev');btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Menyimpan...'
+
+  // Upload QRIS jika ada
+  let qrisUrl=null
+  const qrisFile=document.getElementById('ev-qris')?.files[0]
+  if(isPaid&&qrisFile){
+    const ext=qrisFile.name.split('.').pop()
+    const path=`qris_${Date.now()}.${ext}`
+    const {error:upErr}=await db.storage.from('Attachment Event').upload(path,qrisFile,{upsert:true})
+    if(!upErr){
+      const {data:{publicUrl}}=db.storage.from('Attachment Event').getPublicUrl(path)
+      qrisUrl=publicUrl
+    }
+  }
+
   const expired=document.getElementById('ev-expired').value
-  const {error}=await db.from('events').insert({name,description:document.getElementById('ev-desc').value,date,location:document.getElementById('ev-loc').value,expired_date:expired||null,created_by:CU.id})
+  const {data:newEv,error}=await db.from('events').insert({
+    name,description:document.getElementById('ev-desc').value,date,
+    location:document.getElementById('ev-loc').value,
+    expired_date:expired||null,created_by:CU.id,
+    enrollment_type:enrollType,
+    enroll_deadline:enrollType==='self'?(document.getElementById('ev-enroll-deadline').value||null):null,
+    is_paid:isPaid,
+    rekening_info:isPaid?document.getElementById('ev-rekening').value.trim():null,
+    qris_url:qrisUrl
+  }).select().single()
+
   btn.disabled=false;btn.innerHTML='<i class="ti ti-check"></i> Buat Event'
   if(error){sa('ev-alert',error.message,'error');return}
+
+  // Insert paket
+  if(isPaid&&pkgs.length){
+    await db.from('packages').insert(pkgs.map(p=>({event_id:newEv.id,name:p.name,price:p.price})))
+  }
+
   closeModal('mo-ev');loadEvents();loadHome()
-  ;['ev-name','ev-desc','ev-date','ev-loc','ev-expired'].forEach(id=>document.getElementById(id).value='')
+  ;['ev-name','ev-desc','ev-date','ev-loc','ev-expired','ev-rekening','ev-enroll-deadline'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''})
+  document.getElementById('pkg-rows').innerHTML=''
+  document.getElementById('ev-enroll').value='admin'
+  toggleEnrollOptions()
+
+  // Tampilkan link jika self enrolled
+  if(enrollType==='self'){
+    const link=window.location.origin+'/daftar.html?event='+newEv.id
+    setTimeout(()=>{
+      prompt('Event berhasil dibuat! Salin link pendaftaran ini untuk dibagikan ke peserta:',link)
+    },300)
+  }
 }
 
 function isExpired(ev){
@@ -890,11 +1011,16 @@ async function openDet(evId,evName){
   document.getElementById('nav-events').classList.add('active')
   switchSub('scan')
   const {data:ev}=await db.from('events').select('*').eq('id',evId).single()
+  currentEvData=ev
+  await loadPackages()
   const dateStr=new Date(ev.date).toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
   const isAdmin=CP?.role==='admin'
-  setTopbar(ev.name,dateStr+' · '+(ev.location||'—'),
-    isAdmin?`<button class="btn btn-sm btn-red" onclick="delEv('${evId}')"><i class="ti ti-trash"></i> Hapus Event</button>`:''
-  )
+  let topbarBtns=''
+  if(ev.enrollment_type==='self'){
+    topbarBtns+=`<button class="btn btn-sm btn-outline" onclick="copyRegLink('${evId}')"><i class="ti ti-link"></i> Salin Link Daftar</button>`
+  }
+  if(isAdmin) topbarBtns+=`<button class="btn btn-sm btn-red" onclick="delEv('${evId}')"><i class="ti ti-trash"></i> Hapus Event</button>`
+  setTopbar(ev.name,dateStr+' · '+(ev.location||'—'),topbarBtns)
   const expired=isExpired(ev)
   window._evExpired=expired
   // Cek apakah user adalah ketua panitia
@@ -950,18 +1076,80 @@ function renderAtt(){
   </tr>`}).join('')
 }
 
+let PKGS=[]
+async function loadPackages(){
+  const {data}=await db.from('packages').select('*').eq('event_id',CEV)
+  PKGS=data||[]
+}
+function pkgName(id){
+  const p=PKGS.find(x=>x.id===id)
+  return p?p.name:'—'
+}
+function fmtRp(n){
+  if(n==null)return '—'
+  return 'Rp '+Number(n).toLocaleString('id-ID')
+}
+
 function renderPs(){
   const tb=document.getElementById('ps-body')
-  if(!ATT.length){tb.innerHTML='<tr><td colspan="7" class="nd"><i class="ti ti-users"></i>Upload CSV untuk menambah peserta</td></tr>';return}
-  tb.innerHTML=ATT.map(p=>`<tr>
-    <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.no_karyawan||'—'}</td>
-    <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.nik}</td>
-    <td style="font-weight:600">${p.nama}</td>
-    <td style="font-size:12px;color:var(--text2)">${p.jabatan||'—'}</td>
-    <td style="font-size:12px;color:var(--text2)">${p.departemen||'—'}</td>
-    <td style="font-size:12px;color:var(--text2)">${p.no_hp||'—'}</td>
-    <td>${p.hadir?'<span class="badge green"><i class="ti ti-check" style="font-size:10px"></i> Hadir</span>':'<span class="badge gray">Belum</span>'}</td>
-  </tr>`).join('')
+  const isPaidEvent=currentEvData?.is_paid
+  const canManage=CP?.role==='admin'||window._isKetua
+
+  // Update header dynamically
+  const thead=document.querySelector('#sub-ps thead tr')
+  if(thead){
+    thead.innerHTML=isPaidEvent
+      ?'<th>No. Karyawan</th><th>NIK</th><th>Nama</th><th>Departemen</th><th>Paket</th><th>Tagihan</th><th>Pembayaran</th><th>Hadir</th>'
+      :'<th>No. Karyawan</th><th>NIK</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>No. HP</th><th>Status</th>'
+  }
+
+  if(!ATT.length){tb.innerHTML='<tr><td colspan="8" class="nd"><i class="ti ti-users"></i>Belum ada peserta</td></tr>';return}
+
+  if(isPaidEvent){
+    tb.innerHTML=ATT.map(p=>{
+      let payBadge=''
+      if(p.payment_status==='paid') payBadge='<span class="badge green"><i class="ti ti-check" style="font-size:10px"></i> Lunas</span>'
+      else if(p.payment_status==='free') payBadge='<span class="badge blue">Gratis</span>'
+      else payBadge='<span class="badge red">Belum Lunas</span>'
+      if(canManage&&p.payment_status==='unpaid') payBadge+=` <button class="btn btn-sm btn-green" style="padding:3px 8px;font-size:11px" onclick="markPaid('${p.id}')"><i class="ti ti-check"></i> Tandai Lunas</button>`
+      return `<tr>
+        <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.no_karyawan||'—'}</td>
+        <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.nik}</td>
+        <td style="font-weight:600">${p.nama}</td>
+        <td style="font-size:12px;color:var(--text2)">${p.departemen||'—'}</td>
+        <td style="font-size:12px">${pkgName(p.package_id)}</td>
+        <td style="font-size:13px;font-weight:600">${fmtRp(p.bill_amount)}</td>
+        <td>${payBadge}</td>
+        <td>${p.hadir?'<span class="badge green">Hadir</span>':'<span class="badge gray">Belum</span>'}</td>
+      </tr>`
+    }).join('')
+  } else {
+    tb.innerHTML=ATT.map(p=>`<tr>
+      <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.no_karyawan||'—'}</td>
+      <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.nik}</td>
+      <td style="font-weight:600">${p.nama}</td>
+      <td style="font-size:12px;color:var(--text2)">${p.jabatan||'—'}</td>
+      <td style="font-size:12px;color:var(--text2)">${p.departemen||'—'}</td>
+      <td style="font-size:12px;color:var(--text2)">${p.no_hp||'—'}</td>
+      <td>${p.hadir?'<span class="badge green"><i class="ti ti-check" style="font-size:10px"></i> Hadir</span>':'<span class="badge gray">Belum</span>'}</td>
+    </tr>`).join('')
+  }
+}
+
+async function markPaid(attId){
+  if(!confirm('Tandai peserta ini sudah lunas?'))return
+  const {error}=await db.from('attendees').update({payment_status:'paid'}).eq('id',attId)
+  if(error){alert('Gagal: '+error.message);return}
+  await loadAtt()
+}
+
+function copyRegLink(evId){
+  const link=window.location.origin+'/daftar.html?event='+evId
+  navigator.clipboard.writeText(link).then(()=>{
+    alert('Link pendaftaran disalin!\n\n'+link)
+  }).catch(()=>{
+    prompt('Salin link ini:',link)
+  })
 }
 
 async function updNote(id,val){
@@ -1326,7 +1514,6 @@ async function rejectReq(reqId){
 }
 
 /* ── INFO & DOKUMEN TAB ── */
-let currentEvData=null
 
 async function loadInfoTab(){
   const {data:ev}=await db.from('events').select('*').eq('id',CEV).single()
