@@ -9,6 +9,9 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{
   --gold:#E8A020;--gold-light:#FDF3E0;--gold-dark:#C47F10;
@@ -421,6 +424,11 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
 
               <!-- Note & Save -->
               <div id="note-wrap" style="display:none;margin-top:.75rem">
+                <div id="teman-wrap" style="display:none;margin-bottom:.75rem">
+                  <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px"><i class="ti ti-users-plus" style="vertical-align:-2px;color:var(--gold)"></i> Jumlah Teman yang Dibawa</label>
+                  <input type="number" id="teman-inp" min="0" value="0" style="width:100%;padding:9px 12px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:14px;font-family:inherit;outline:none;font-weight:700" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--gray2)'"/>
+                  <div style="font-size:11px;color:var(--text2);margin-top:4px">Isi 0 jika tamu datang sendiri</div>
+                </div>
                 <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px">Keterangan (opsional)</label>
                 <textarea id="note-inp" style="width:100%;padding:9px 12px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;resize:vertical;min-height:60px;font-family:inherit;outline:none" placeholder="Catatan tambahan…" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--gray2)'"></textarea>
                 <button class="btn btn-green btn-full" style="margin-top:8px" onclick="saveAtt()"><i class="ti ti-circle-check"></i> Simpan Kehadiran</button>
@@ -462,13 +470,14 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
           <div class="card">
             <div class="card-header">
               <div class="card-title"><i class="ti ti-users"></i> Daftar Peserta</div>
-              <div style="display:flex;gap:8px">
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <span id="ps-extra-btns"></span>
                 <button class="btn btn-sm btn-outline" onclick="dlAll()"><i class="ti ti-download"></i> Download Daftar</button>
                 <button class="btn btn-sm btn-gold" onclick="dlHadir()"><i class="ti ti-file-spreadsheet"></i> Laporan Hadir</button>
               </div>
             </div>
             <div id="upload-sec" style="display:none;margin-bottom:1.25rem">
-              <div class="ib">
+              <div class="ib" id="csv-info-box">
                 <strong><i class="ti ti-info-circle" style="vertical-align:-2px"></i> Format CSV — sesuai data ID Card SBP:</strong>
                 <span class="tag">no_karyawan</span>
                 <span class="tag">nama</span>
@@ -668,6 +677,13 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
     <div class="mh"><h3><i class="ti ti-calendar-plus" style="color:var(--gold);margin-right:6px"></i>Buat Event Baru</h3><button style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text2)" onclick="closeModal('mo-ev')">×</button></div>
     <div class="mc">
       <div class="alert-msg" id="ev-alert"></div>
+      <div class="fgi">
+        <label>Kategori Event *</label>
+        <select id="ev-category" onchange="toggleCategoryOptions()" style="width:100%;padding:9px 12px;border:1.5px solid var(--gray2);border-radius:var(--radius);font-size:13px;font-family:inherit;outline:none">
+          <option value="internal">Internal — karyawan SBP (scan ID Card)</option>
+          <option value="external">Eksternal — tamu undangan (QR Undangan)</option>
+        </select>
+      </div>
       <div class="fgi"><label>Nama Event *</label><input type="text" id="ev-name" placeholder="Contoh: Meeting Besar SBP 2026"/></div>
       <div class="fgi"><label>Deskripsi</label><textarea id="ev-desc" placeholder="Deskripsi singkat event"></textarea></div>
       <div class="fr2">
@@ -858,6 +874,7 @@ function renderEventCards(evs,targetId){
         <div class="event-card-date"><i class="ti ti-calendar"></i>${new Date(e.date).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}</div>
         <div class="event-card-name">${e.name}</div>
         ${isExpired(e)?'<div style="margin-top:8px;display:inline-flex;align-items:center;gap:4px;background:rgba(192,57,43,.3);border:1px solid rgba(192,57,43,.4);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#F09595"><i class="ti ti-lock" style="font-size:10px"></i> EXPIRED</div>':'<div style="margin-top:8px;display:inline-flex;align-items:center;gap:4px;background:rgba(15,110,86,.3);border:1px solid rgba(15,110,86,.4);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#5DCAA5"><i class="ti ti-circle-check" style="font-size:10px"></i> AKTIF</div>'}
+        ${e.event_category==='external'?'<div style="margin-top:8px;margin-left:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(24,95,165,.3);border:1px solid rgba(24,95,165,.4);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#9CC8EE"><i class="ti ti-user-star" style="font-size:10px"></i> TAMU EKSTERNAL</div>':''}
       </div>
       <div class="event-card-body">
         <div class="event-card-meta"><i class="ti ti-map-pin"></i>${e.location||'Lokasi belum diatur'}</div>
@@ -887,6 +904,18 @@ async function loadEvents(){
   renderEventCards(evs,'events-grid')
 }
 
+function toggleCategoryOptions(){
+  const cat=document.getElementById('ev-category').value
+  // Event eksternal selalu admin-enrolled (panitia upload list tamu)
+  const enrollWrap=document.getElementById('ev-enroll').closest('.fgi')
+  if(cat==='external'){
+    document.getElementById('ev-enroll').value='admin'
+    enrollWrap.style.display='none'
+    toggleEnrollOptions()
+  }else{
+    enrollWrap.style.display='block'
+  }
+}
 function toggleEnrollOptions(){
   const v=document.getElementById('ev-enroll').value
   document.getElementById('self-options').style.display=v==='self'?'block':'none'
@@ -951,6 +980,7 @@ async function buatEvent(){
     name,description:document.getElementById('ev-desc').value,date,
     location:document.getElementById('ev-loc').value,
     expired_date:expired||null,created_by:CU.id,
+    event_category:document.getElementById('ev-category').value,
     enrollment_type:enrollType,
     enroll_deadline:enrollType==='self'?(document.getElementById('ev-enroll-deadline').value||null):null,
     is_paid:isPaid,
@@ -970,6 +1000,8 @@ async function buatEvent(){
   ;['ev-name','ev-desc','ev-date','ev-loc','ev-expired','ev-rekening','ev-enroll-deadline'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''})
   document.getElementById('pkg-rows').innerHTML=''
   document.getElementById('ev-enroll').value='admin'
+  document.getElementById('ev-category').value='internal'
+  toggleCategoryOptions()
   toggleEnrollOptions()
 
   // Tampilkan link jika self enrolled
@@ -1088,7 +1120,31 @@ async function loadAtt(){
   const {data}=await db.from('attendees').select('*').eq('event_id',CEV).order('nama')
   ATT=data||[]
   await loadSessions()
-  renderAtt();renderPs()
+  renderAtt();renderPs();updateCSVInfoBox()
+}
+
+function updateCSVInfoBox(){
+  const mid=document.getElementById('mid')
+  if(mid&&!mid.disabled){
+    mid.placeholder=isExternalEvent()?'No. HP tamu…':'NIK Karyawan / No. KTP…'
+  }
+  const box=document.getElementById('csv-info-box')
+  if(!box)return
+  if(isExternalEvent()){
+    box.innerHTML=`<strong><i class="ti ti-info-circle" style="vertical-align:-2px"></i> Format CSV — Tamu Undangan Eksternal:</strong>
+      <span class="tag">nama</span>
+      <span class="tag">no_hp</span>
+      <div style="margin-top:8px;font-size:12px;opacity:.85">QR undangan akan digenerate otomatis untuk setiap tamu setelah upload. Gunakan titik koma (;) atau koma (,) sebagai pemisah.</div>`
+  }else{
+    box.innerHTML=`<strong><i class="ti ti-info-circle" style="vertical-align:-2px"></i> Format CSV — sesuai data ID Card SBP:</strong>
+      <span class="tag">no_karyawan</span>
+      <span class="tag">nama</span>
+      <span class="tag">nik</span>
+      <span class="tag">no_hp</span>
+      <span class="tag">jabatan</span>
+      <span class="tag">departemen</span>
+      <div style="margin-top:8px;font-size:12px;opacity:.85">Verifikasi menggunakan <strong>NIK</strong> sebagai data utama. Gunakan titik koma (;) atau koma (,) sebagai pemisah.</div>`
+  }
 }
 
 async function loadSessions(){
@@ -1162,32 +1218,70 @@ function filterAtt(v){FT=v;renderAtt()}
 
 function renderAtt(){
   const tb=document.getElementById('att-body'),ft=FT.toLowerCase()
-  const list=ATT.filter(p=>!ft||(p.nama?.toLowerCase().includes(ft)||p.nik?.includes(ft)||p.no_karyawan?.includes(ft)))
+  const isExt=isExternalEvent()
+  const list=ATT.filter(p=>!ft||(p.nama?.toLowerCase().includes(ft)||(p.nik||'').includes(ft)||(p.no_karyawan||'').includes(ft)||normPhone(p.no_hp||'').includes(normPhone(ft))))
 
-  // Header dinamis: satu kolom jam per sesi
+  // Stats strip untuk event eksternal
+  let statsEl=document.getElementById('ext-stats')
+  if(isExt){
+    const hadirCount=ATT.filter(p=>p.hadir||SESSIONS.some(s=>getSessAtt(p.id,s.id))).length
+    const temanCount=ATT.reduce((sum,p)=>sum+(p.jumlah_teman||0),0)
+    const total=hadirCount+temanCount
+    const html=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.75rem;margin-bottom:1rem">
+      <div style="background:var(--gold-light);border:1px solid rgba(232,160,32,.3);border-radius:var(--radius);padding:.75rem 1rem;text-align:center">
+        <div style="font-size:11px;color:var(--gold-dark);font-weight:700;text-transform:uppercase">Undangan Hadir</div>
+        <div style="font-size:22px;font-weight:700">${hadirCount}<span style="font-size:12px;color:var(--text2);font-weight:400"> / ${ATT.length}</span></div>
+      </div>
+      <div style="background:#dbeafe;border:1px solid rgba(24,95,165,.25);border-radius:var(--radius);padding:.75rem 1rem;text-align:center">
+        <div style="font-size:11px;color:#185FA5;font-weight:700;text-transform:uppercase">Teman Dibawa</div>
+        <div style="font-size:22px;font-weight:700">${temanCount}</div>
+      </div>
+      <div style="background:#dcfce7;border:1px solid rgba(15,110,86,.25);border-radius:var(--radius);padding:.75rem 1rem;text-align:center">
+        <div style="font-size:11px;color:#0F6E56;font-weight:700;text-transform:uppercase">Total Kehadiran</div>
+        <div style="font-size:22px;font-weight:700">${total}</div>
+      </div>
+    </div>`
+    if(!statsEl){
+      statsEl=document.createElement('div')
+      statsEl.id='ext-stats'
+      const attCard=document.getElementById('att-body').closest('.card')
+      attCard.insertBefore(statsEl,attCard.querySelector('.table-wrap'))
+    }
+    statsEl.innerHTML=html
+  }else if(statsEl){
+    statsEl.remove()
+  }
+
   const thead=document.querySelector('#sub-scan thead tr')
-  const colgroup=document.querySelector('#sub-scan colgroup')
   if(thead){
-    thead.innerHTML='<th>NIK Karyawan</th><th>Nama</th>'
-      +SESSIONS.map(s=>`<th>${s.name}</th>`).join('')
-      +'<th>Keterangan</th>'
+    if(isExt){
+      thead.innerHTML='<th>No. HP</th><th>Nama</th>'
+        +SESSIONS.map(s=>`<th>${s.name}</th>`).join('')
+        +'<th>Teman</th><th>Keterangan</th>'
+    }else{
+      thead.innerHTML='<th>NIK Karyawan</th><th>Nama</th>'
+        +SESSIONS.map(s=>`<th>${s.name}</th>`).join('')
+        +'<th>Keterangan</th>'
+    }
+    const colgroup=document.querySelector('#sub-scan colgroup')
     if(colgroup) colgroup.remove()
   }
 
-  const totalCols=3+SESSIONS.length
-  if(!list.length){tb.innerHTML=`<tr><td colspan="${totalCols}" class="nd"><i class="ti ti-users"></i>Belum ada peserta</td></tr>`;return}
+  const totalCols=(isExt?4:3)+SESSIONS.length
+  if(!list.length){tb.innerHTML=`<tr><td colspan="${totalCols}" class="nd"><i class="ti ti-users"></i>Belum ada ${isExt?'tamu':'peserta'}</td></tr>`;return}
 
-  tb.innerHTML=list.map(p=>{const c=gc(p.id)
+  tb.innerHTML=list.map(p=>{const cc=gc(p.id)
     const sessCells=SESSIONS.map(s=>{
-      const sa=getSessAtt(p.id,s.id)
-      return sa
-        ?`<td><span style="font-size:13px;font-weight:700;color:#0F6E56">${(sa.jam_hadir||'').slice(0,5)}</span></td>`
+      const x=getSessAtt(p.id,s.id)
+      return x
+        ?`<td><span style="font-size:13px;font-weight:700;color:#0F6E56">${(x.jam_hadir||'').slice(0,5)}</span></td>`
         :'<td><span style="color:var(--gray2)">—</span></td>'
     }).join('')
     return`<tr>
-    <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.no_karyawan||'—'}</td>
-    <td><div class="nc"><div class="av" style="background:${c.bg};color:${c.t}">${gi(p.nama)}</div><span style="font-size:13px;font-weight:600">${p.nama}</span></div></td>
+    <td style="font-family:monospace;font-size:12px;color:var(--text2)">${isExt?(p.no_hp||'—'):(p.no_karyawan||'—')}</td>
+    <td><div class="nc"><div class="av" style="background:${cc.bg};color:${cc.t}">${gi(p.nama)}</div><span style="font-size:13px;font-weight:600">${p.nama}</span></div></td>
     ${sessCells}
+    ${isExt?`<td style="font-weight:700;text-align:center">${p.jumlah_teman||0}</td>`:''}
     <td><input class="in-note" value="${p.keterangan||''}" placeholder="Catatan…" onchange="updNote('${p.id}',this.value)" ${window._evExpired?'disabled style="opacity:.5"':''}/></td>
   </tr>`}).join('')
 }
@@ -1209,17 +1303,40 @@ function fmtRp(n){
 function renderPs(){
   const tb=document.getElementById('ps-body')
   const isPaidEvent=currentEvData?.is_paid
+  const isExt=isExternalEvent()
   const canManage=CP?.role==='admin'||window._isKetua
 
-  // Update header dynamically
   const thead=document.querySelector('#sub-ps thead tr')
   if(thead){
-    thead.innerHTML=isPaidEvent
-      ?'<th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th><th>Departemen</th><th>Paket</th><th>Tagihan</th><th>Pembayaran</th><th>Hadir</th>'
-      :'<th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>No. HP</th><th>Status</th>'
+    if(isExt){
+      thead.innerHTML='<th>No. HP</th><th>Nama</th><th>QR Undangan</th><th>Hadir</th><th>Teman</th>'
+    }else{
+      thead.innerHTML=isPaidEvent
+        ?'<th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th><th>Departemen</th><th>Paket</th><th>Tagihan</th><th>Pembayaran</th><th>Hadir</th>'
+        :'<th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>No. HP</th><th>Status</th>'
+    }
   }
+  // Tombol ZIP untuk event eksternal
+  const extra=document.getElementById('ps-extra-btns')
+  if(extra)extra.innerHTML=isExt&&canManage?'<button class="btn btn-sm btn-outline" onclick="dlAllZip()"><i class="ti ti-file-zip"></i> Download Semua QR (ZIP)</button>':''
 
-  if(!ATT.length){tb.innerHTML='<tr><td colspan="8" class="nd"><i class="ti ti-users"></i>Belum ada peserta</td></tr>';return}
+  if(!ATT.length){tb.innerHTML='<tr><td colspan="8" class="nd"><i class="ti ti-users"></i>'+(isExt?'Upload CSV daftar tamu (kolom: nama, no_hp)':'Upload CSV untuk menambah peserta')+'</td></tr>';return}
+
+  if(isExt){
+    tb.innerHTML=ATT.map(p=>`<tr>
+      <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.no_hp||'—'}</td>
+      <td style="font-weight:600">${p.nama}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-outline" onclick="dlGuestPDF('${p.id}')" title="Download PDF QR"><i class="ti ti-file-type-pdf"></i> PDF</button>
+          <button class="btn btn-sm btn-green" style="padding:5px 10px" onclick="waGuest('${p.id}')" title="Kirim via WhatsApp"><i class="ti ti-brand-whatsapp"></i> WA</button>
+        </div>
+      </td>
+      <td>${p.hadir?'<span class="badge green"><i class="ti ti-check" style="font-size:10px"></i> Hadir</span>':'<span class="badge gray">Belum</span>'}</td>
+      <td style="font-weight:700;text-align:center">${p.jumlah_teman||0}</td>
+    </tr>`).join('')
+    return
+  }
 
   if(isPaidEvent){
     tb.innerHTML=ATT.map(p=>{
@@ -1230,11 +1347,11 @@ function renderPs(){
       if(canManage&&p.payment_status==='unpaid') payBadge+=` <button class="btn btn-sm btn-green" style="padding:3px 8px;font-size:11px" onclick="markPaid('${p.id}')"><i class="ti ti-check"></i> Tandai Lunas</button>`
       return `<tr>
         <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.no_karyawan||'—'}</td>
-        <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.nik}</td>
+        <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.nik||'—'}</td>
         <td style="font-weight:600">${p.nama}</td>
         <td style="font-size:12px;color:var(--text2)">${p.departemen||'—'}</td>
         <td style="font-size:12px">${pkgName(p.package_id)}</td>
-        <td style="font-size:13px;font-weight:600">${fmtRp(p.bill_amount)}</td>
+        <td style="font-size:13px;font-weight:700">${fmtRp(p.bill_amount)}</td>
         <td>${payBadge}</td>
         <td>${p.hadir?'<span class="badge green">Hadir</span>':'<span class="badge gray">Belum</span>'}</td>
       </tr>`
@@ -1242,7 +1359,7 @@ function renderPs(){
   } else {
     tb.innerHTML=ATT.map(p=>`<tr>
       <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.no_karyawan||'—'}</td>
-      <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.nik}</td>
+      <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.nik||'—'}</td>
       <td style="font-weight:600">${p.nama}</td>
       <td style="font-size:12px;color:var(--text2)">${p.jabatan||'—'}</td>
       <td style="font-size:12px;color:var(--text2)">${p.departemen||'—'}</td>
@@ -1311,22 +1428,37 @@ function doScan(raw){
       document.getElementById('q-err-sub').textContent='Pilih sesi absensi terlebih dahulu'
       setTimeout(()=>setQS('idle'),3000);return
     }
-    const parts=parseQRData(raw)
     let p=null
 
-    if(parts.length>=3){
-      const nik=parts[2]?.replace(/\D/g,'')
-      p=ATT.find(a=>a.nik===nik||a.nik===parts[2])
-      if(!p) p=ATT.find(a=>a.no_karyawan===parts[0])
-    } else {
-      const val=parts[0]
-      p=ATT.find(a=>a.nik===val||a.no_karyawan===val)
-    }
-
-    if(!p){
-      setQS('err')
-      document.getElementById('q-err-sub').textContent='Data tidak ditemukan dalam daftar peserta event ini'
-      setTimeout(()=>setQS('idle'),3500);return
+    if(isExternalEvent()){
+      // Event eksternal: QR berisi token EXT-xxx, atau input manual No. HP
+      const val=String(raw).trim()
+      if(val.startsWith('EXT-')){
+        p=ATT.find(a=>a.qr_token===val)
+      }else{
+        const hp=normPhone(val)
+        p=ATT.find(a=>normPhone(a.no_hp)===hp)
+      }
+      if(!p){
+        setQS('err')
+        document.getElementById('q-err-sub').textContent='QR / No. HP tidak ditemukan dalam daftar tamu event ini'
+        setTimeout(()=>setQS('idle'),3500);return
+      }
+    }else{
+      const parts=parseQRData(raw)
+      if(parts.length>=3){
+        const nik=parts[2]?.replace(/\D/g,'')
+        p=ATT.find(a=>a.nik===nik||a.nik===parts[2])
+        if(!p) p=ATT.find(a=>a.no_karyawan===parts[0])
+      } else {
+        const val=parts[0]
+        p=ATT.find(a=>a.nik===val||a.no_karyawan===val)
+      }
+      if(!p){
+        setQS('err')
+        document.getElementById('q-err-sub').textContent='Data tidak ditemukan dalam daftar peserta event ini'
+        setTimeout(()=>setQS('idle'),3500);return
+      }
     }
 
     // Cek apakah sudah absen di sesi aktif
@@ -1334,17 +1466,29 @@ function doScan(raw){
     if(existing){
       const sessName=SESSIONS.find(s=>s.id===activeSession)?.name||''
       setQS('err')
-      document.getElementById('q-err-sub').textContent=p.nama+' sudah absen di '+sessName+' pukul '+existing.jam_hadir
+      document.getElementById('q-err-sub').textContent=p.nama+' sudah absen di '+sessName+' pukul '+(existing.jam_hadir||'').slice(0,5)
       setTimeout(()=>setQS('idle'),3500);return
     }
 
     CSI=p.id;setQS('ok')
     document.getElementById('q-ok-name').textContent=p.nama
-    document.getElementById('q-ok-sub').textContent=(p.no_karyawan?'NIK '+p.no_karyawan+' · ':'')+(p.jabatan||'')+(p.departemen?' · '+p.departemen:'')
-    document.getElementById('fb-name').textContent=p.nama
-    document.getElementById('fb-meta').textContent=(p.no_karyawan?'NIK Karyawan: '+p.no_karyawan+' · ':'')+'No. KTP: '+p.nik+(p.departemen?' · '+p.departemen:'')
+    if(isExternalEvent()){
+      document.getElementById('q-ok-sub').textContent='Tamu Undangan · '+(p.no_hp||'')
+      document.getElementById('fb-name').textContent=p.nama
+      document.getElementById('fb-meta').textContent='No. HP: '+(p.no_hp||'—')+' · Tamu Eksternal'
+    }else{
+      document.getElementById('q-ok-sub').textContent=(p.no_karyawan?'NIK '+p.no_karyawan+' · ':'')+(p.jabatan||'')+(p.departemen?' · '+p.departemen:'')
+      document.getElementById('fb-name').textContent=p.nama
+      document.getElementById('fb-meta').textContent=(p.no_karyawan?'NIK Karyawan: '+p.no_karyawan+' · ':'')+'No. KTP: '+(p.nik||'—')+(p.departemen?' · '+p.departemen:'')
+    }
     document.getElementById('fb').className='fb show'
     document.getElementById('note-inp').value=''
+    // Input jumlah teman hanya untuk event eksternal
+    const temanWrap=document.getElementById('teman-wrap')
+    if(temanWrap){
+      temanWrap.style.display=isExternalEvent()?'block':'none'
+      document.getElementById('teman-inp').value=p.jumlah_teman||0
+    }
     document.getElementById('note-wrap').style.display='block'
     document.getElementById('mid').value=''
   },600)
@@ -1357,12 +1501,13 @@ async function saveAtt(){
   const now=new Date()
   const jam=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')
   const ket=document.getElementById('note-inp').value
-  // Insert ke session_attendance
   const {error}=await db.from('session_attendance').insert({session_id:activeSession,attendee_id:CSI,jam_hadir:jam,keterangan:ket})
   if(error){alert('Gagal menyimpan: '+error.message);return}
-  // Update attendees.hadir untuk kompatibilitas laporan lama (hadir = pernah absen minimal 1 sesi)
-  await db.from('attendees').update({hadir:true,jam_hadir:jam}).eq('id',CSI).is('jam_hadir',null)
-  await db.from('attendees').update({hadir:true}).eq('id',CSI)
+  const upd={hadir:true,jam_hadir:jam}
+  if(isExternalEvent()){
+    upd.jumlah_teman=parseInt(document.getElementById('teman-inp').value)||0
+  }
+  await db.from('attendees').update(upd).eq('id',CSI)
   CSI=null;setQS('idle')
   document.getElementById('fb').className='fb'
   document.getElementById('note-wrap').style.display='none'
@@ -1428,8 +1573,50 @@ function parseCSV(text){
   return rows
 }
 
+function normPhone(v){
+  let p=String(v||'').replace(/\D/g,'')
+  if(p.startsWith('62'))p='0'+p.slice(2)
+  return p
+}
+function genToken(){
+  const arr=new Uint8Array(12)
+  crypto.getRandomValues(arr)
+  return 'EXT-'+Array.from(arr,b=>b.toString(16).padStart(2,'0')).join('')
+}
+function isExternalEvent(){return currentEvData?.event_category==='external'}
+
+function parseCSVExternal(text){
+  const lines=text.trim().split(/\r?\n/)
+  if(lines.length<2)return null
+  const sep=lines[0].includes(';')?';':','
+  const headers=lines[0].split(sep).map(h=>h.trim().replace(/"/g,'').toLowerCase())
+  for(const r of ['nama','no_hp']){if(!headers.includes(r)){alert('Kolom "'+r+'" tidak ditemukan. Untuk event eksternal, CSV wajib memiliki kolom: nama, no_hp');return null}}
+  const rows=[]
+  for(let i=1;i<lines.length;i++){
+    const vals=lines[i].split(sep).map(v=>v.trim().replace(/"/g,''))
+    if(vals.every(v=>!v))continue
+    const o={};headers.forEach((h,idx)=>o[h]=vals[idx]||'')
+    if(!o.nama||!o.no_hp)continue
+    rows.push({event_id:CEV,nama:o.nama,no_hp:normPhone(o.no_hp),qr_token:genToken()})
+  }
+  return rows
+}
+
 async function handleCSV(e){
   const file=e.target.files[0];if(!file)return
+  if(isExternalEvent()){
+    const rows=parseCSVExternal(await file.text())
+    if(!rows||!rows.length){alert('File kosong atau format tidak valid.');return}
+    // Dedup by no_hp terhadap data yang sudah ada
+    const existingPhones=new Set(ATT.map(a=>normPhone(a.no_hp)))
+    const newRows=rows.filter(r=>!existingPhones.has(r.no_hp))
+    const skipped=rows.length-newRows.length
+    if(!newRows.length){alert('Semua nomor HP di file sudah terdaftar ('+skipped+' dilewati).');e.target.value='';return}
+    const {error}=await db.from('attendees').insert(newRows)
+    if(error){alert('Error upload: '+error.message);return}
+    alert(newRows.length+' tamu berhasil diupload!'+(skipped?' ('+skipped+' duplikat dilewati)':''));e.target.value='';await loadAtt()
+    return
+  }
   const rows=parseCSV(await file.text())
   if(!rows||!rows.length){alert('File kosong atau format tidak valid.');return}
   const {error}=await db.from('attendees').upsert(rows,{onConflict:'event_id,nik'})
@@ -1438,8 +1625,10 @@ async function handleCSV(e){
 }
 
 function dlTemplate(){
-  const csv='no_karyawan;nama;nik;no_hp;jabatan;departemen\n190115;RISZA OKI PARDIRA;3208012710850001;081809700035;Staff HRD;HRD'
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='template_peserta_sbp.csv';a.click()
+  const csv=isExternalEvent()
+    ?'nama;no_hp\nBudi Santoso;081234567890'
+    :'no_karyawan;nama;nik;no_hp;jabatan;departemen\n190115;RISZA OKI PARDIRA;3208012710850001;081809700035;Staff HRD;HRD'
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=isExternalEvent()?'template_tamu_eksternal.csv':'template_peserta_sbp.csv';a.click()
 }
 
 function makeCSV(rows,header){
@@ -1454,6 +1643,15 @@ function sessJam(p,s){
 }
 function dlAll(){
   if(!ATT.length){alert('Belum ada data peserta.');return}
+  if(isExternalEvent()){
+    const h=['No. HP','Nama',...SESSIONS.map(s=>'Jam '+s.name),'Jumlah Teman','Status','Keterangan']
+    const rows=ATT.map(p=>{
+      const anyHadir=SESSIONS.some(s=>getSessAtt(p.id,s.id))||p.hadir
+      return [p.no_hp,p.nama,...SESSIONS.map(s=>sessJam(p,s)),p.jumlah_teman||0,anyHadir?'Hadir':'Belum Hadir',p.keterangan]
+    })
+    dlCSV(makeCSV(rows,h),'Daftar Tamu - '+CEVNAME+'.csv')
+    return
+  }
   const h=['NIK Karyawan','Nama','No. KTP','No. HP','Jabatan','Departemen',...SESSIONS.map(s=>'Jam '+s.name),'Status','Keterangan']
   const rows=ATT.map(p=>{
     const anyHadir=SESSIONS.some(s=>getSessAtt(p.id,s.id))||p.hadir
@@ -1464,12 +1662,122 @@ function dlAll(){
 function dlHadir(){
   const hadir=ATT.filter(p=>p.hadir||SESSIONS.some(s=>getSessAtt(p.id,s.id)))
   if(!hadir.length){alert('Belum ada peserta yang hadir.');return}
+  if(isExternalEvent()){
+    const temanTotal=hadir.reduce((sum,p)=>sum+(p.jumlah_teman||0),0)
+    const h=['No. HP','Nama',...SESSIONS.map(s=>'Jam '+s.name),'Jumlah Teman','Keterangan']
+    const rows=hadir.map(p=>[p.no_hp,p.nama,...SESSIONS.map(s=>sessJam(p,s)),p.jumlah_teman||0,p.keterangan])
+    rows.push([])
+    rows.push(['TOTAL UNDANGAN HADIR',hadir.length])
+    rows.push(['TOTAL TEMAN',temanTotal])
+    rows.push(['TOTAL KEHADIRAN',hadir.length+temanTotal])
+    dlCSV(makeCSV(rows,h),'Laporan Kehadiran Tamu - '+CEVNAME+'.csv')
+    return
+  }
   const h=['NIK Karyawan','Nama','No. KTP','No. HP','Jabatan','Departemen',...SESSIONS.map(s=>'Jam '+s.name),'Keterangan']
   const rows=hadir.map(p=>[p.no_karyawan,p.nama,p.nik,p.no_hp,p.jabatan,p.departemen,...SESSIONS.map(s=>sessJam(p,s)),p.keterangan])
   dlCSV(makeCSV(rows,h),'Laporan Kehadiran - '+CEVNAME+'.csv')
 }
 
 /* PANITIA - ASSIGN SYSTEM */
+
+/* ── QR UNDANGAN TAMU EKSTERNAL ── */
+function genQRDataURL(text,size=300){
+  return new Promise((resolve)=>{
+    let holder=document.getElementById('qr-holder')
+    if(!holder){
+      holder=document.createElement('div')
+      holder.id='qr-holder'
+      holder.style.cssText='position:fixed;left:-9999px;top:-9999px'
+      document.body.appendChild(holder)
+    }
+    holder.innerHTML=''
+    new QRCode(holder,{text,width:size,height:size,correctLevel:QRCode.CorrectLevel.M})
+    setTimeout(()=>{
+      const canvas=holder.querySelector('canvas')
+      resolve(canvas?canvas.toDataURL('image/png'):null)
+    },80)
+  })
+}
+
+async function ensureToken(p){
+  if(p.qr_token)return p.qr_token
+  const token=genToken()
+  await db.from('attendees').update({qr_token:token}).eq('id',p.id)
+  p.qr_token=token
+  return token
+}
+
+async function buildGuestPDF(p){
+  const token=await ensureToken(p)
+  const qrData=await genQRDataURL(token,300)
+  const {jsPDF}=window.jspdf
+  const doc=new jsPDF({unit:'mm',format:[105,148]}) // A6
+  // Header
+  doc.setFillColor(26,26,46)
+  doc.rect(0,0,105,30,'F')
+  doc.setTextColor(232,160,32)
+  doc.setFontSize(14);doc.setFont('helvetica','bold')
+  doc.text('SBP GROUP',52.5,12,{align:'center'})
+  doc.setTextColor(255,255,255)
+  doc.setFontSize(9);doc.setFont('helvetica','normal')
+  doc.text('Undangan Event',52.5,19,{align:'center'})
+  // Event name
+  doc.setTextColor(26,26,46)
+  doc.setFontSize(11);doc.setFont('helvetica','bold')
+  const evLines=doc.splitTextToSize(CEVNAME,90)
+  doc.text(evLines,52.5,40,{align:'center'})
+  // QR
+  if(qrData)doc.addImage(qrData,'PNG',32.5,48,40,40)
+  // Guest info
+  doc.setFontSize(12);doc.setFont('helvetica','bold')
+  doc.text(p.nama,52.5,98,{align:'center'})
+  doc.setFontSize(9);doc.setFont('helvetica','normal')
+  doc.setTextColor(100,100,100)
+  doc.text(p.no_hp||'',52.5,104,{align:'center'})
+  // Footer note
+  doc.setFontSize(7.5)
+  doc.text('Tunjukkan QR ini kepada panitia saat registrasi kehadiran.',52.5,120,{align:'center'})
+  doc.setDrawColor(232,160,32)
+  doc.setLineWidth(.6)
+  doc.line(30,126,75,126)
+  doc.setFontSize(7)
+  doc.text('SBP Event Registration',52.5,132,{align:'center'})
+  return doc
+}
+
+function safeFileName(s){return (s||'tamu').replace(/[^a-zA-Z0-9 _-]/g,'').trim().replace(/\s+/g,'_')}
+
+async function dlGuestPDF(attId){
+  const p=ATT.find(a=>a.id===attId);if(!p)return
+  const doc=await buildGuestPDF(p)
+  doc.save('QR_'+safeFileName(p.nama)+'.pdf')
+}
+
+async function dlAllZip(){
+  const guests=ATT
+  if(!guests.length){alert('Belum ada tamu.');return}
+  if(!confirm('Generate PDF QR untuk '+guests.length+' tamu dan unduh sebagai ZIP?'))return
+  const zip=new JSZip()
+  for(const p of guests){
+    const doc=await buildGuestPDF(p)
+    zip.file('QR_'+safeFileName(p.nama)+'.pdf',doc.output('blob'))
+  }
+  const blob=await zip.generateAsync({type:'blob'})
+  const a=document.createElement('a')
+  a.href=URL.createObjectURL(blob)
+  a.download='QR_Undangan_'+safeFileName(CEVNAME)+'.zip'
+  a.click()
+}
+
+function waGuest(attId){
+  const p=ATT.find(a=>a.id===attId);if(!p)return
+  let hp=normPhone(p.no_hp)
+  if(hp.startsWith('0'))hp='62'+hp.slice(1)
+  const msg='Halo '+p.nama+',%0A%0AAnda diundang ke event *'+encodeURIComponent(CEVNAME)+'*.%0AQR undangan Anda terlampir. Mohon tunjukkan QR tersebut kepada panitia saat registrasi kehadiran.%0A%0ATerima kasih!%0A_SBP Group_'
+  window.open('https://wa.me/'+hp+'?text='+msg,'_blank')
+}
+
+
 async function loadPanitia(){
   const isAdmin=CP?.role==='admin'
   const isKetua=window._isKetua||false
