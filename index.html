@@ -643,25 +643,6 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--gray2);vertical-align:m
 
 
 
-<!-- MODAL: Edit Peserta -->
-<div class="mo" id="mo-edit-att">
-  <div class="md">
-    <div class="mh">
-      <h3><i class="ti ti-edit" style="color:var(--gold);margin-right:6px"></i>Edit Data Peserta</h3>
-      <button style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text2)" onclick="closeModal('mo-edit-att')">×</button>
-    </div>
-    <div class="mc">
-      <div class="alert-msg" id="edit-att-alert"></div>
-      <input type="hidden" id="edit-att-id"/>
-      <div id="edit-att-fields"></div>
-    </div>
-    <div class="mf">
-      <button class="btn btn-sm btn-outline" onclick="closeModal('mo-edit-att')">Batal</button>
-      <button class="btn btn-gold btn-sm" onclick="saveEditAtt()"><i class="ti ti-check"></i> Simpan Perubahan</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL: Kelola Sesi -->
 <div class="mo" id="mo-sessions">
   <div class="md">
@@ -1328,19 +1309,18 @@ function renderPs(){
   const thead=document.querySelector('#sub-ps thead tr')
   if(thead){
     if(isExt){
-      thead.innerHTML='<th>No. HP</th><th>Nama</th><th>QR Undangan</th><th>Hadir</th><th>Teman</th>'+(canManage?'<th>Aksi</th>':'')
+      thead.innerHTML='<th>No. HP</th><th>Nama</th><th>QR Undangan</th><th>Hadir</th><th>Teman</th>'
     }else{
-      thead.innerHTML=(isPaidEvent
+      thead.innerHTML=isPaidEvent
         ?'<th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th><th>Departemen</th><th>Paket</th><th>Tagihan</th><th>Pembayaran</th><th>Hadir</th>'
-        :'<th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>No. HP</th><th>Status</th>')+(canManage?'<th>Aksi</th>':'')
+        :'<th>NIK Karyawan</th><th>No. KTP</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>No. HP</th><th>Status</th>'
     }
   }
+  // Tombol ZIP untuk event eksternal
   const extra=document.getElementById('ps-extra-btns')
   if(extra)extra.innerHTML=isExt&&canManage?'<button class="btn btn-sm btn-outline" onclick="dlAllZip()"><i class="ti ti-file-zip"></i> Download Semua QR (ZIP)</button>':''
 
-  const aksiCol=canManage?'<td><div style="display:flex;gap:4px"><button class="btn btn-sm btn-outline" style="padding:5px 9px" onclick="openEditAtt(\'ATTID\')" title="Edit"><i class="ti ti-edit"></i></button><button class="btn btn-sm btn-red" style="padding:5px 9px" onclick="delAtt(\'ATTID\')" title="Hapus"><i class="ti ti-trash"></i></button></div></td>':''
-
-  if(!ATT.length){tb.innerHTML='<tr><td colspan="9" class="nd"><i class="ti ti-users"></i>'+(isExt?'Upload CSV daftar tamu (kolom: nama, no_hp)':'Upload CSV untuk menambah peserta')+'</td></tr>';return}
+  if(!ATT.length){tb.innerHTML='<tr><td colspan="8" class="nd"><i class="ti ti-users"></i>'+(isExt?'Upload CSV daftar tamu (kolom: nama, no_hp)':'Upload CSV untuk menambah peserta')+'</td></tr>';return}
 
   if(isExt){
     tb.innerHTML=ATT.map(p=>`<tr>
@@ -1354,7 +1334,6 @@ function renderPs(){
       </td>
       <td>${p.hadir?'<span class="badge green"><i class="ti ti-check" style="font-size:10px"></i> Hadir</span>':'<span class="badge gray">Belum</span>'}</td>
       <td style="font-weight:700;text-align:center">${p.jumlah_teman||0}</td>
-      ${aksiCol.replace(/ATTID/g,p.id)}
     </tr>`).join('')
     return
   }
@@ -1375,7 +1354,6 @@ function renderPs(){
         <td style="font-size:13px;font-weight:700">${fmtRp(p.bill_amount)}</td>
         <td>${payBadge}</td>
         <td>${p.hadir?'<span class="badge green">Hadir</span>':'<span class="badge gray">Belum</span>'}</td>
-        ${aksiCol.replace(/ATTID/g,p.id)}
       </tr>`
     }).join('')
   } else {
@@ -1387,7 +1365,6 @@ function renderPs(){
       <td style="font-size:12px;color:var(--text2)">${p.departemen||'—'}</td>
       <td style="font-size:12px;color:var(--text2)">${p.no_hp||'—'}</td>
       <td>${p.hadir?'<span class="badge green"><i class="ti ti-check" style="font-size:10px"></i> Hadir</span>':'<span class="badge gray">Belum</span>'}</td>
-      ${aksiCol.replace(/ATTID/g,p.id)}
     </tr>`).join('')
   }
 }
@@ -1702,66 +1679,6 @@ function dlHadir(){
 }
 
 /* PANITIA - ASSIGN SYSTEM */
-
-
-/* ── EDIT PESERTA (admin & ketua) ── */
-function openEditAtt(attId){
-  const p=ATT.find(a=>a.id===attId);if(!p)return
-  document.getElementById('edit-att-id').value=attId
-  const fields=document.getElementById('edit-att-fields')
-  if(isExternalEvent()){
-    fields.innerHTML=`
-      <div class="fgi"><label>Nama *</label><input type="text" id="ea-nama" value="${(p.nama||'').replace(/"/g,'&quot;')}"/></div>
-      <div class="fgi"><label>No. HP *</label><input type="text" id="ea-hp" value="${p.no_hp||''}"/></div>`
-  }else{
-    fields.innerHTML=`
-      <div class="fr2">
-        <div class="fgi"><label>NIK Karyawan</label><input type="text" id="ea-nokar" value="${p.no_karyawan||''}"/></div>
-        <div class="fgi"><label>No. KTP</label><input type="text" id="ea-ktp" value="${p.nik||''}"/></div>
-      </div>
-      <div class="fgi"><label>Nama *</label><input type="text" id="ea-nama" value="${(p.nama||'').replace(/"/g,'&quot;')}"/></div>
-      <div class="fr2">
-        <div class="fgi"><label>Jabatan</label><input type="text" id="ea-jabatan" value="${(p.jabatan||'').replace(/"/g,'&quot;')}"/></div>
-        <div class="fgi"><label>Departemen</label><input type="text" id="ea-dept" value="${(p.departemen||'').replace(/"/g,'&quot;')}"/></div>
-      </div>
-      <div class="fgi"><label>No. HP</label><input type="text" id="ea-hp" value="${p.no_hp||''}"/></div>`
-  }
-  document.getElementById('edit-att-alert').style.display='none'
-  openModal('mo-edit-att')
-}
-
-async function saveEditAtt(){
-  const id=document.getElementById('edit-att-id').value
-  const nama=document.getElementById('ea-nama').value.trim()
-  if(!nama){sa('edit-att-alert','Nama wajib diisi.','error');return}
-  let upd={nama}
-  if(isExternalEvent()){
-    const hp=normPhone(document.getElementById('ea-hp').value)
-    if(!hp){sa('edit-att-alert','No. HP wajib diisi.','error');return}
-    // Cek duplikat no_hp (kecuali dirinya sendiri)
-    const dup=ATT.find(a=>a.id!==id&&normPhone(a.no_hp)===hp)
-    if(dup){sa('edit-att-alert','No. HP sudah dipakai tamu lain ('+dup.nama+').','error');return}
-    upd.no_hp=hp
-  }else{
-    upd.no_karyawan=document.getElementById('ea-nokar').value.trim()
-    upd.nik=document.getElementById('ea-ktp').value.trim()
-    upd.jabatan=document.getElementById('ea-jabatan').value.trim()
-    upd.departemen=document.getElementById('ea-dept').value.trim()
-    upd.no_hp=document.getElementById('ea-hp').value.trim()
-  }
-  const {error}=await db.from('attendees').update(upd).eq('id',id)
-  if(error){sa('edit-att-alert',error.message,'error');return}
-  closeModal('mo-edit-att')
-  await loadAtt()
-}
-
-async function delAtt(attId){
-  const p=ATT.find(a=>a.id===attId);if(!p)return
-  if(!confirm('Hapus '+(p.nama||'data ini')+' dari daftar?'))return
-  const {error}=await db.from('attendees').delete().eq('id',attId)
-  if(error){alert('Gagal: '+error.message);return}
-  await loadAtt()
-}
 
 /* ── QR UNDANGAN TAMU EKSTERNAL ── */
 function genQRDataURL(text,size=300){
