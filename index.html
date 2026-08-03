@@ -1673,6 +1673,11 @@ function sessJam(p,s){
   const sa=getSessAtt(p.id,s.id)
   return sa?(sa.jam_hadir||'').slice(0,5):''
 }
+function payLabel(p){
+  if(p.payment_status==='paid')return 'Lunas'
+  if(p.payment_status==='free')return 'Gratis'
+  return 'Belum Lunas'
+}
 function dlAll(){
   if(!ATT.length){alert('Belum ada data peserta.');return}
   if(isExternalEvent()){
@@ -1684,10 +1689,15 @@ function dlAll(){
     dlCSV(makeCSV(rows,h),'Daftar Tamu - '+CEVNAME+'.csv')
     return
   }
-  const h=['NIK Karyawan','Nama','No. KTP','No. HP','Jabatan','Departemen',...SESSIONS.map(s=>'Jam '+s.name),'Status','Keterangan']
+  const isPaidEvent=currentEvData?.is_paid
+  let h=['NIK Karyawan','Nama','No. KTP','No. HP','Jabatan','Departemen']
+  if(isPaidEvent)h=h.concat(['Paket','Tagihan (Rp)','Status Pembayaran','Kode Unik'])
+  h=h.concat([...SESSIONS.map(s=>'Jam '+s.name),'Status','Keterangan'])
   const rows=ATT.map(p=>{
     const anyHadir=SESSIONS.some(s=>getSessAtt(p.id,s.id))||p.hadir
-    return [p.no_karyawan,p.nama,p.nik,p.no_hp,p.jabatan,p.departemen,...SESSIONS.map(s=>sessJam(p,s)),anyHadir?'Hadir':'Belum Hadir',p.keterangan]
+    let base=[p.no_karyawan,p.nama,p.nik,p.no_hp,p.jabatan,p.departemen]
+    if(isPaidEvent)base=base.concat([pkgNames(p),p.bill_amount||'',payLabel(p),p.unique_code||''])
+    return base.concat([...SESSIONS.map(s=>sessJam(p,s)),anyHadir?'Hadir':'Belum Hadir',p.keterangan])
   })
   dlCSV(makeCSV(rows,h),'Daftar Peserta - '+CEVNAME+'.csv')
 }
@@ -1705,8 +1715,15 @@ function dlHadir(){
     dlCSV(makeCSV(rows,h),'Laporan Kehadiran Tamu - '+CEVNAME+'.csv')
     return
   }
-  const h=['NIK Karyawan','Nama','No. KTP','No. HP','Jabatan','Departemen',...SESSIONS.map(s=>'Jam '+s.name),'Keterangan']
-  const rows=hadir.map(p=>[p.no_karyawan,p.nama,p.nik,p.no_hp,p.jabatan,p.departemen,...SESSIONS.map(s=>sessJam(p,s)),p.keterangan])
+  const isPaidEvent=currentEvData?.is_paid
+  let h=['NIK Karyawan','Nama','No. KTP','No. HP','Jabatan','Departemen']
+  if(isPaidEvent)h=h.concat(['Paket','Tagihan (Rp)','Status Pembayaran','Kode Unik'])
+  h=h.concat([...SESSIONS.map(s=>'Jam '+s.name),'Keterangan'])
+  const rows=hadir.map(p=>{
+    let base=[p.no_karyawan,p.nama,p.nik,p.no_hp,p.jabatan,p.departemen]
+    if(isPaidEvent)base=base.concat([pkgNames(p),p.bill_amount||'',payLabel(p),p.unique_code||''])
+    return base.concat([...SESSIONS.map(s=>sessJam(p,s)),p.keterangan])
+  })
   dlCSV(makeCSV(rows,h),'Laporan Kehadiran - '+CEVNAME+'.csv')
 }
 
