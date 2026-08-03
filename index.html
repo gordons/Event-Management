@@ -1310,6 +1310,14 @@ async function loadPackages(){
   const {data}=await db.from('packages').select('*').eq('event_id',CEV)
   PKGS=data||[]
 }
+function pkgNames(p){
+  // Dukung multi-paket (package_ids array) + fallback package_id lama
+  let ids=[]
+  if(Array.isArray(p.package_ids)&&p.package_ids.length) ids=p.package_ids
+  else if(p.package_id) ids=[p.package_id]
+  if(!ids.length) return '—'
+  return ids.map(id=>{const x=PKGS.find(k=>k.id===id);return x?x.name:'?'}).join(', ')
+}
 function pkgName(id){
   const p=PKGS.find(x=>x.id===id)
   return p?p.name:'—'
@@ -1323,7 +1331,7 @@ function renderPs(){
   const tb=document.getElementById('ps-body')
   const isPaidEvent=currentEvData?.is_paid
   const isExt=isExternalEvent()
-  const canManage=CP?.role==='admin'||window._isKetua
+  const canManage=(CP?.role==='admin')||window._isKetua===true
 
   const thead=document.querySelector('#sub-ps thead tr')
   if(thead){
@@ -1372,7 +1380,7 @@ function renderPs(){
         <td style="font-family:monospace;font-size:12px;color:var(--text2)">${p.nik||'—'}</td>
         <td style="font-weight:600">${p.nama}</td>
         <td style="font-size:12px;color:var(--text2)">${p.departemen||'—'}</td>
-        <td style="font-size:12px">${pkgName(p.package_id)}</td>
+        <td style="font-size:12px">${pkgNames(p)}</td>
         <td style="font-size:13px;font-weight:700">${fmtRp(p.bill_amount)}</td>
         <td>${payBadge}</td>
         <td>${p.hadir?'<span class="badge green">Hadir</span>':'<span class="badge gray">Belum</span>'}</td>

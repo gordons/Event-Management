@@ -161,10 +161,14 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(135de
         <div class="id-name" id="c-nama">—</div>
         <div class="id-sub">Data dari ID Card Anda</div>
       </div>
-      <div class="section-label"><i class="ti ti-package"></i> Pilih Paket</div>
+      <div class="section-label"><i class="ti ti-package"></i> Pilih Paket <span style="font-weight:400;color:var(--text2);text-transform:none;letter-spacing:0;margin-left:4px">(boleh pilih lebih dari satu)</span></div>
       <div id="pkg-list"></div>
+      <div id="cart-total" style="display:none;background:var(--gold-light);border:1px solid rgba(232,160,32,.3);border-radius:var(--radius);padding:12px 16px;margin-top:.75rem;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:13px;font-weight:600;color:var(--gold-dark)">Subtotal (<span id="cart-count">0</span> paket)</span>
+        <span style="font-size:18px;font-weight:800;color:var(--gold-dark)" id="cart-sum">Rp 0</span>
+      </div>
       <div class="alert-msg error" id="pkg-alert"></div>
-      <button class="btn btn-gold" style="margin-top:.5rem" onclick="submitEnroll()" id="btn-enroll"><i class="ti ti-circle-check"></i> Daftar Sekarang</button>
+      <button class="btn btn-gold" style="margin-top:.75rem" onclick="submitEnroll()" id="btn-enroll"><i class="ti ti-circle-check"></i> Daftar Sekarang</button>
     </div>
 
     <!-- CONFIRM FREE -->
@@ -226,7 +230,7 @@ const SB_URL='https://brmpyrlmmvjrataeovdm.supabase.co'
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJybXB5cmxtbXZqcmF0YWVvdmRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzUwODAsImV4cCI6MjA5NTk1MTA4MH0.XzlHNnJl7ZK3HRS4haM61NPPVJnri4-7EdQNHWG1SBo'
 const db=window.supabase.createClient(SB_URL,SB_KEY)
 
-let EV=null,PKGS=[],scanned={nik:null,nama:null,no_karyawan:null,no_hp:null},selectedPkg=null
+let EV=null,PKGS=[],scanned={nik:null,nama:null,no_karyawan:null,no_hp:null},selectedPkgs=[]
 let currentAttId=null
 const BUCKET='Attachment Event'
 
@@ -353,6 +357,7 @@ async function checkExisting(isManual=false){
   if(EV.is_paid&&PKGS.length){
     document.getElementById('c-nik').textContent='NIK: '+scanned.nik
     document.getElementById('c-nama').textContent=scanned.nama
+    selectedPkgs=[]
     renderPkgs()
     show('pkg')
   } else {
@@ -362,11 +367,17 @@ async function checkExisting(isManual=false){
 }
 
 async function showExistingStatus(att){
-  // Ambil nama paket
+  // Ambil nama paket (dukung multi-paket)
   let pkgLabel='—'
-  if(att.package_id){
-    const {data:pkg}=await db.from('packages').select('name').eq('id',att.package_id).single()
-    pkgLabel=pkg?.name||'—'
+  let ids=[]
+  if(Array.isArray(att.package_ids)&&att.package_ids.length) ids=att.package_ids
+  else if(att.package_id) ids=[att.package_id]
+  if(ids.length){
+    const {data:pkgs}=await db.from('packages').select('id,name').in('id',ids)
+    if(pkgs&&pkgs.length){
+      // Urutkan sesuai urutan ids
+      pkgLabel=ids.map(id=>{const x=pkgs.find(k=>k.id===id);return x?x.name:'?'}).join(', ')
+    }
   }
 
   if(EV.is_paid&&att.bill_amount){
@@ -404,9 +415,9 @@ async function showExistingStatus(att){
 function renderPkgs(){
   const el=document.getElementById('pkg-list')
   el.innerHTML=PKGS.map(p=>`
-    <div class="pkg" id="pkg-${p.id}" onclick="selectPkg('${p.id}')">
+    <div class="pkg" id="pkg-${p.id}" onclick="togglePkg('${p.id}')">
       <div class="pkg-left">
-        <div class="pkg-radio"></div>
+        <div class="pkg-check" style="width:20px;height:20px;border:2px solid var(--gray2);border-radius:5px;flex-shrink:0;margin-right:12px;position:relative;display:flex;align-items:center;justify-content:center"></div>
         <div>
           <div class="pkg-name">${p.name}</div>
           ${p.description?`<div style="font-size:12px;color:var(--text2)">${p.description}</div>`:''}
@@ -414,11 +425,33 @@ function renderPkgs(){
       </div>
       <div class="pkg-price">${fmtRp(p.price)}</div>
     </div>`).join('')
+  updateCart()
 }
-function selectPkg(id){
-  selectedPkg=PKGS.find(p=>p.id===id)
-  document.querySelectorAll('.pkg').forEach(e=>e.classList.remove('selected'))
-  document.getElementById('pkg-'+id).classList.add('selected')
+function togglePkg(id){
+  const pkg=PKGS.find(p=>p.id===id)
+  const idx=selectedPkgs.findIndex(p=>p.id===id)
+  const row=document.getElementById('pkg-'+id)
+  const check=row.querySelector('.pkg-check')
+  if(idx>=0){
+    selectedPkgs.splice(idx,1)
+    row.classList.remove('selected')
+    check.innerHTML=''
+    check.style.background='#fff';check.style.borderColor='var(--gray2)'
+  }else{
+    selectedPkgs.push(pkg)
+    row.classList.add('selected')
+    check.innerHTML='<i class="ti ti-check" style="color:#fff;font-size:14px"></i>'
+    check.style.background='var(--gold)';check.style.borderColor='var(--gold)'
+  }
+  updateCart()
+}
+function updateCart(){
+  const box=document.getElementById('cart-total')
+  if(!selectedPkgs.length){box.style.display='none';return}
+  const sum=selectedPkgs.reduce((t,p)=>t+Number(p.price),0)
+  document.getElementById('cart-count').textContent=selectedPkgs.length
+  document.getElementById('cart-sum').textContent=fmtRp(sum)
+  box.style.display='flex'
 }
 
 /* ── ENROLL ── */
@@ -446,9 +479,9 @@ async function enrollFree(){
 }
 
 async function submitEnroll(){
-  if(!selectedPkg){
+  if(!selectedPkgs.length){
     const el=document.getElementById('pkg-alert')
-    el.innerHTML='<i class="ti ti-alert-circle"></i> Pilih paket terlebih dahulu.'
+    el.innerHTML='<i class="ti ti-alert-circle"></i> Pilih minimal satu paket terlebih dahulu.'
     el.style.display='flex'
     setTimeout(()=>el.style.display='none',4000)
     return
@@ -458,7 +491,9 @@ async function submitEnroll(){
 
   // Generate 3 digit unik
   const uniqueCode=Math.floor(Math.random()*900)+100 // 100-999
-  const billAmount=Number(selectedPkg.price)+uniqueCode
+  const pkgTotal=selectedPkgs.reduce((t,p)=>t+Number(p.price),0)
+  const billAmount=pkgTotal+uniqueCode
+  const pkgNamesStr=selectedPkgs.map(p=>p.name).join(', ')
 
   const {data:inserted,error}=await db.from('attendees').insert({
     event_id:EV.id,
@@ -466,7 +501,8 @@ async function submitEnroll(){
     nama:scanned.nama,
     nik:scanned.nik,
     no_hp:scanned.no_hp,
-    package_id:selectedPkg.id,
+    package_id:selectedPkgs[0].id,
+    package_ids:selectedPkgs.map(p=>p.id),
     bill_amount:billAmount,
     unique_code:uniqueCode,
     payment_status:'unpaid',
@@ -489,7 +525,7 @@ async function submitEnroll(){
   // Tampilkan tagihan
   document.getElementById('b-nik').textContent='NIK: '+scanned.nik
   document.getElementById('b-nama').textContent=scanned.nama
-  document.getElementById('b-pkg').textContent='Paket: '+selectedPkg.name
+  document.getElementById('b-pkg').textContent='Paket: '+pkgNamesStr
   document.getElementById('b-amount').textContent=fmtRp(billAmount)
   document.getElementById('b-status').innerHTML='<div class="status-badge unpaid"><i class="ti ti-clock"></i> Menunggu Pembayaran</div>'
   if(EV.qris_url){
