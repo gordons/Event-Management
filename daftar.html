@@ -200,7 +200,21 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(135de
       <div class="section-label"><i class="ti ti-credit-card"></i> Pembayaran</div>
       <img class="qris-img" id="b-qris" style="display:none"/>
       <div class="rek-box" id="b-rekening">—</div>
-      <div class="info-note">Simpan halaman ini sebagai bukti.<br/>Anda bisa scan ulang ID card di link yang sama untuk melihat status.</div>
+
+      <div id="proof-section" style="margin-top:1rem">
+        <div class="section-label"><i class="ti ti-receipt"></i> Upload Bukti Bayar</div>
+        <div id="proof-existing" style="display:none;margin-bottom:.75rem"></div>
+        <div id="proof-uploader">
+          <div class="uz" onclick="document.getElementById('proof-file').click()" style="border:2px dashed var(--gray2);border-radius:var(--radius-lg);padding:1.25rem;display:flex;flex-direction:column;align-items:center;gap:8px;background:#F7FBFB;cursor:pointer;text-align:center">
+            <i class="ti ti-upload" style="font-size:32px;color:var(--gray2)"></i>
+            <p style="font-size:12px;color:var(--text2)"><strong style="color:var(--dark);display:block;margin-bottom:2px">Klik untuk upload bukti transfer</strong>Foto / screenshot (JPG, PNG)</p>
+            <input type="file" id="proof-file" accept="image/*" style="display:none" onchange="uploadProof(this)"/>
+          </div>
+          <div class="alert-msg error" id="proof-alert"></div>
+        </div>
+      </div>
+
+      <div class="info-note">Simpan halaman ini sebagai bukti.<br/>Anda bisa masukkan No. HP di link yang sama untuk melihat status & upload bukti bayar.</div>
     </div>
 
   </div>
@@ -213,6 +227,8 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const db=window.supabase.createClient(SB_URL,SB_KEY)
 
 let EV=null,PKGS=[],scanned={nik:null,nama:null,no_karyawan:null,no_hp:null},selectedPkg=null
+let currentAttId=null
+const BUCKET='Attachment Event'
 
 function show(s){
   document.querySelectorAll('.state').forEach(e=>e.classList.remove('active'))
@@ -369,6 +385,8 @@ async function showExistingStatus(att){
       document.getElementById('b-qris').style.display='block'
     }
     document.getElementById('b-rekening').textContent=EV.rekening_info||'—'
+    currentAttId=att.id
+    renderProofSection(att)
     // Update title untuk existing
     document.querySelector('#st-bill .center h3').textContent='Anda Sudah Terdaftar'
     document.querySelector('#st-bill .info-note').innerHTML='Untuk perubahan data atau paket, silakan hubungi <strong>HRD</strong>.'
@@ -442,7 +460,7 @@ async function submitEnroll(){
   const uniqueCode=Math.floor(Math.random()*900)+100 // 100-999
   const billAmount=Number(selectedPkg.price)+uniqueCode
 
-  const {error}=await db.from('attendees').insert({
+  const {data:inserted,error}=await db.from('attendees').insert({
     event_id:EV.id,
     no_karyawan:scanned.no_karyawan,
     nama:scanned.nama,
@@ -453,7 +471,7 @@ async function submitEnroll(){
     unique_code:uniqueCode,
     payment_status:'unpaid',
     enrolled_at:new Date().toISOString()
-  })
+  }).select().single()
 
   btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Daftar Sekarang'
 
@@ -479,7 +497,71 @@ async function submitEnroll(){
     document.getElementById('b-qris').style.display='block'
   }
   document.getElementById('b-rekening').textContent=EV.rekening_info||'—'
+  currentAttId=inserted?.id||null
+  renderProofSection(inserted||{})
   show('bill')
+}
+
+/* ── UPLOAD BUKTI BAYAR ── */
+function renderProofSection(att){
+  const section=document.getElementById('proof-section')
+  const existing=document.getElementById('proof-existing')
+  const uploader=document.getElementById('proof-uploader')
+  if(!section)return
+  // Kalau sudah lunas, sembunyikan uploader (tidak perlu upload lagi)
+  if(att.payment_status==='paid'){
+    section.style.display='block'
+    uploader.style.display='none'
+    existing.style.display='block'
+    existing.innerHTML='<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--radius);padding:10px 14px;font-size:13px;color:#166534;display:flex;align-items:center;gap:8px"><i class="ti ti-circle-check"></i> Pembayaran Anda sudah dikonfirmasi lunas oleh panitia.</div>'
+    if(att.payment_proof){
+      existing.innerHTML+=`<a href="${att.payment_proof}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--gold-dark);font-weight:600;text-decoration:none"><i class="ti ti-photo"></i> Lihat bukti yang Anda upload</a>`
+    }
+    return
+  }
+  section.style.display='block'
+  if(att.payment_proof){
+    existing.style.display='block'
+    existing.innerHTML=`<div style="background:var(--gold-light);border:1px solid rgba(232,160,32,.3);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--gold-dark)">
+      <div style="display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:6px"><i class="ti ti-clock"></i> Bukti bayar sudah terkirim, menunggu verifikasi panitia.</div>
+      <a href="${att.payment_proof}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--gold-dark);font-weight:600;text-decoration:none"><i class="ti ti-photo"></i> Lihat bukti Anda</a>
+    </div>`
+    // Masih bisa ganti bukti
+    const uz=uploader.querySelector('.uz p strong')
+    if(uz)uz.textContent='Klik untuk ganti bukti transfer'
+  }else{
+    existing.style.display='none'
+  }
+}
+
+async function uploadProof(input){
+  const file=input.files[0]
+  if(!file){return}
+  if(!currentAttId){alert('Terjadi kesalahan, silakan muat ulang halaman.');return}
+  const alertEl=document.getElementById('proof-alert')
+  alertEl.style.display='none'
+  // Tampilkan loading di uploader
+  const uz=document.querySelector('#proof-uploader .uz')
+  const uzHtml=uz.innerHTML
+  uz.innerHTML='<i class="ti ti-loader-2 spin" style="font-size:32px;color:var(--gold)"></i><p style="font-size:12px;color:var(--text2)">Mengupload bukti…</p>'
+  try{
+    const ext=file.name.split('.').pop()
+    const path=`bukti_${currentAttId}_${Date.now()}.${ext}`
+    const {error:upErr}=await db.storage.from(BUCKET).upload(path,file,{upsert:true})
+    if(upErr)throw upErr
+    const {data:{publicUrl}}=db.storage.from(BUCKET).getPublicUrl(path)
+    const {error:updErr}=await db.from('attendees').update({payment_proof:publicUrl}).eq('id',currentAttId)
+    if(updErr)throw updErr
+    uz.innerHTML=uzHtml
+    input.value=''
+    // Refresh tampilan
+    const {data:fresh}=await db.from('attendees').select('*').eq('id',currentAttId).single()
+    renderProofSection(fresh||{})
+  }catch(e){
+    uz.innerHTML=uzHtml
+    alertEl.innerHTML='<i class="ti ti-alert-circle"></i> Gagal upload: '+e.message
+    alertEl.style.display='flex'
+  }
 }
 </script>
 </body>
