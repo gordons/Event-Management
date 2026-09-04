@@ -1110,7 +1110,6 @@ async function openDet(evId,evName){
   if(expired){
     // EXPIRED: lock everything, hide upload, hide delete
     document.getElementById('upload-sec').style.display='none'
-    document.getElementById('ed-btns').innerHTML=''
     window._isKetua=isKetua
     setTopbar(ev.name,dateStr+' · '+(ev.location||'—')+' · <span style="color:#F09595;font-weight:600"><i class="ti ti-lock" style="font-size:12px"></i> Expired '+new Date(ev.expired_date).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})+'</span>','')
     await loadAtt()
